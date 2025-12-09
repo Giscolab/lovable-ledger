@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUploader } from '@/components/FileUploader';
 import { TransactionTable } from '@/components/TransactionTable';
@@ -7,12 +7,13 @@ import { MonthlyStats } from '@/components/MonthlyStats';
 import { IncompressibleCard } from '@/components/IncompressibleCard';
 import { MonthSelector } from '@/components/MonthSelector';
 import { BudgetAlertCard } from '@/components/BudgetAlertCard';
+import { RecurringTransactions } from '@/components/RecurringTransactions';
 import { Transaction, CategoryType, MonthlyStats as MonthlyStatsType } from '@/utils/types';
 import { localStore } from '@/utils/localStore';
 import { computeMonthlyStats, getAvailableMonths } from '@/utils/computeStats';
 import { checkBudgetAlerts } from '@/utils/budgets';
+import { detectRecurringTransactions } from '@/utils/recurring';
 import { categorizeTransaction } from '@/utils/categorize';
-import { DEFAULT_CATEGORY_RULES } from '@/utils/categories';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, BarChart3 } from 'lucide-react';
 
@@ -126,6 +127,7 @@ const Index = () => {
 
   const budgets = localStore.getBudgets();
   const alerts = stats ? checkBudgetAlerts(budgets, stats.byCategory) : [];
+  const recurringTransactions = useMemo(() => detectRecurringTransactions(transactions), [transactions]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -157,6 +159,9 @@ const Index = () => {
 
           {/* Budget Alerts */}
           {alerts.length > 0 && <BudgetAlertCard alerts={alerts} />}
+
+          {/* Recurring Transactions */}
+          <RecurringTransactions recurring={recurringTransactions} />
 
           {/* Month Selector */}
           <div className="flex items-center justify-between">
