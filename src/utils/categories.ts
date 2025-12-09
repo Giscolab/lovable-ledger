@@ -1,66 +1,130 @@
 import { CategoryRule, CategoryType } from './types';
 
 export const DEFAULT_CATEGORY_RULES: CategoryRule[] = [
-  // Incompressible expenses
+  // INCOMPRESSIBLE - Charges fixes
   {
     category: 'rent',
-    keywords: ['habitat', 'logement', 'loyer', 'apl', 'hlm'],
+    keywords: [
+      'loyer', 'habitat', 'hlm', 'office', 'logement', 'apl', 'caf',
+      'bail', 'propriétaire', 'agence immobilière', 'syndic', 'charges locatives'
+    ],
     isIncompressible: true,
   },
   {
     category: 'utilities',
-    keywords: ['edf', 'gdf', 'sowee', 'engie', 'électricité', 'gaz', 'eau'],
+    keywords: [
+      'edf', 'gdf', 'sowee', 'engie', 'eau', 'électricité', 'power',
+      'veolia', 'suez', 'total energie', 'eni', 'direct energie',
+      'chauffage', 'gaz', 'kwh', 'compteur'
+    ],
     isIncompressible: true,
   },
   {
     category: 'insurance',
-    keywords: ['bpce', 'gav', 'assurance', 'habitation', 'pj', 'mutuelle', 'maif', 'axa', 'macif'],
+    keywords: [
+      'bpce', 'assurance', 'habitation', 'gav', 'pj', 'mutuelle',
+      'maif', 'axa', 'macif', 'groupama', 'allianz', 'generali',
+      'mma', 'matmut', 'maaf', 'gmf', 'swiss life', 'agipi',
+      'responsabilité civile', 'prévoyance', 'santé'
+    ],
     isIncompressible: true,
   },
   {
     category: 'internet',
-    keywords: ['sfr', 'box', 'mobile', 'orange', 'free', 'bouygues', 'sosh'],
+    keywords: [
+      'sfr', 'box', 'mobile', 'forfait', 'fibre', 'orange', 'free',
+      'bouygues', 'sosh', 'red by sfr', 'b&you', 'nrj mobile',
+      'prixtel', 'coriolis', 'la poste mobile', 'internet', 'adsl'
+    ],
     isIncompressible: true,
   },
   {
     category: 'transport',
-    keywords: ['navigo', 'transport', 'ratp', 'sncf', 'metro', 'bus', 'tram', 'velib'],
+    keywords: [
+      'navigo', 'ratp', 'sncf', 'transport', 'bus', 'metro', 'tram',
+      'velib', 'autolib', 'taxi', 'uber', 'bolt', 'kapten', 'heetch',
+      'blablacar', 'ouigo', 'tgv', 'ter', 'rer', 'transilien',
+      'péage', 'autoroute', 'essence', 'gasoil', 'carburant', 'total', 'shell', 'bp'
+    ],
     isIncompressible: true,
   },
   {
     category: 'investments',
-    keywords: ['per', 'retraite', 'immobilier', 'versement volontaire', 'épargne', 'livret', 'bourse'],
+    keywords: [
+      'per', 'immobilier', 'retraite', 'plan', 'placement', 'épargne',
+      'livret a', 'ldds', 'pel', 'cea', 'pea', 'assurance vie',
+      'bourse', 'action', 'obligation', 'sicav', 'fcp', 'etf',
+      'crypto', 'bitcoin', 'ethereum', 'trading', 'boursorama', 'degiro'
+    ],
     isIncompressible: true,
   },
-  // Variable expenses
+
+  // VARIABLE - Dépenses variables
   {
     category: 'groceries',
-    keywords: ['carrefour', 'auchan', 'city', 'supermarché', 'leclerc', 'lidl', 'monoprix', 'franprix', 'intermarché'],
+    keywords: [
+      'carrefour', 'auchan', 'market', 'supermarché', 'leclerc', 'lidl',
+      'monoprix', 'franprix', 'intermarché', 'super u', 'casino',
+      'simply', 'match', 'cora', 'géant', 'hyper u', 'picard',
+      'primeur', 'boucherie', 'poissonnerie', 'épicerie', 'bio c bon',
+      'naturalia', 'biocoop', 'la vie claire'
+    ],
     isIncompressible: false,
   },
   {
     category: 'food',
-    keywords: ['deliveroo', 'restaurant', 'café', 'bar', 'sandwich', 'uber eats', 'just eat', 'pizza', 'sushi', 'boulangerie'],
+    keywords: [
+      'deliveroo', 'restaurant', 'mcd', 'kfc', 'burger', 'sandwich',
+      'uber eats', 'just eat', 'pizza', 'sushi', 'boulangerie',
+      'café', 'bar', 'brasserie', 'bistrot', 'kebab', 'tacos',
+      'dominos', 'pizza hut', 'mcdonalds', 'quick', 'subway',
+      'starbucks', 'paul', 'brioche dorée', 'class croute',
+      'foodora', 'frichti', 'getir', 'gorillas'
+    ],
     isIncompressible: false,
   },
   {
     category: 'shopping',
-    keywords: ['ldlc', 'fnac', 'c&a', 'lovable', 'maillot', 'amazon', 'zalando', 'asos', 'decathlon', 'ikea'],
+    keywords: [
+      'ldlc', 'fnac', 'decathlon', 'c&a', 'go sport', 'amazon',
+      'zalando', 'asos', 'h&m', 'zara', 'uniqlo', 'kiabi',
+      'celio', 'jules', 'promod', 'mango', 'ikea', 'but',
+      'conforama', 'leroy merlin', 'castorama', 'brico depot',
+      'darty', 'boulanger', 'electro depot', 'cdiscount',
+      'aliexpress', 'wish', 'shein', 'vinted', 'leboncoin'
+    ],
     isIncompressible: false,
   },
   {
     category: 'smoking',
-    keywords: ['tabac', 'cigarettes', 'la tabatière', 'bureau de tabac'],
+    keywords: [
+      'tabac', 'cigarette', 'fumeur', 'bureau de tabac', 'la tabatière',
+      'vape', 'vapotage', 'e-cigarette', 'pmu', 'fdj', 'loto'
+    ],
     isIncompressible: false,
   },
   {
     category: 'entertainment',
-    keywords: ['google play', 'netflix', 'billetreduc', 'le napoleon', 'spotify', 'disney', 'cinema', 'concert', 'théâtre'],
+    keywords: [
+      'google play', 'cinéma', 'netflix', 'billet', 'spectacle',
+      'spotify', 'deezer', 'apple music', 'amazon prime', 'disney',
+      'canal+', 'ocs', 'hbo', 'paramount', 'crunchyroll',
+      'playstation', 'xbox', 'nintendo', 'steam', 'epic games',
+      'théâtre', 'concert', 'festival', 'expo', 'musée',
+      'parc attraction', 'bowling', 'laser game', 'escape game',
+      'billetreduc', 'ticketmaster', 'fnac spectacles'
+    ],
     isIncompressible: false,
   },
   {
     category: 'health',
-    keywords: ['pharmacie', 'healthcare', 'médecin', 'docteur', 'hopital', 'clinique', 'dentiste', 'ophtalmo'],
+    keywords: [
+      'pharmacie', 'doctolib', 'médical', 'médecin', 'docteur',
+      'hopital', 'clinique', 'dentiste', 'ophtalmo', 'dermato',
+      'kiné', 'ostéo', 'psy', 'psychologue', 'psychiatre',
+      'laboratoire', 'analyse', 'radio', 'scanner', 'irm',
+      'optique', 'lunettes', 'lentilles', 'audition', 'prothèse'
+    ],
     isIncompressible: false,
   },
 ];
@@ -105,3 +169,23 @@ export const INCOMPRESSIBLE_CATEGORIES: CategoryType[] = [
   'transport',
   'investments',
 ];
+
+// Helper to get category color class
+export const getCategoryColorClass = (category: CategoryType): string => {
+  const colorMap: Record<CategoryType, string> = {
+    rent: 'bg-category-rent',
+    utilities: 'bg-category-utilities',
+    insurance: 'bg-category-insurance',
+    internet: 'bg-category-internet',
+    transport: 'bg-category-transport',
+    investments: 'bg-category-investments',
+    groceries: 'bg-category-groceries',
+    food: 'bg-category-food',
+    shopping: 'bg-category-shopping',
+    smoking: 'bg-category-smoking',
+    entertainment: 'bg-category-entertainment',
+    health: 'bg-category-health',
+    other: 'bg-category-other',
+  };
+  return colorMap[category] || colorMap.other;
+};

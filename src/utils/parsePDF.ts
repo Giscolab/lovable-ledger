@@ -3,7 +3,7 @@ import { Transaction } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
 
-// Configure PDF.js worker - use unpkg CDN which is more reliable
+// Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface TextItem {
@@ -24,14 +24,12 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
   
   console.log(`[PDF Parser] Processing ${pdf.numPages} pages`);
   
-  // First, extract all text to understand the structure
   let allLines: ParsedLine[] = [];
   
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const textContent = await page.getTextContent();
     
-    // Group text items by Y position (same line)
     const pageLines: ParsedLine[] = [];
     
     textContent.items.forEach((item: any) => {
@@ -49,7 +47,6 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
       line.items.push({ x, text: textItem.str.trim() });
     });
     
-    // Sort lines by Y (descending = top to bottom)
     pageLines.sort((a, b) => b.y - a.y);
     pageLines.forEach(line => {
       line.items.sort((a, b) => a.x - b.x);
@@ -60,12 +57,6 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
   
   console.log(`[PDF Parser] Found ${allLines.length} lines`);
   
-  // Debug: show first 20 lines
-  allLines.slice(0, 20).forEach((line, i) => {
-    const text = line.items.map(it => it.text).join(' | ');
-    console.log(`[PDF Line ${i}] ${text}`);
-  });
-  
   const transactions: Transaction[] = [];
   const rules = localStore.getRules();
   
@@ -75,7 +66,6 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
     const transaction = parseTransactionLine(fullText, rules);
     
     if (transaction) {
-      // Check for duplicates
       const isDuplicate = transactions.some(t => 
         t.id === transaction.id || 
         (t.date.getTime() === transaction.date.getTime() && 
@@ -100,19 +90,19 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
     }
   }
   
-  // Sort by date
   transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
   
   return transactions;
 };
 
 function parseTransactionLine(text: string, rules: any[]): Transaction | null {
-  // Date patterns: DD/MM/YYYY, DD/MM/YY, DD.MM.YYYY, DD.MM.YY
+  // Enhanced date patterns for French bank statements
   const datePatterns = [
     /^(\d{2}[\/\.]\d{2}[\/\.]\d{4})/,
     /^(\d{2}[\/\.]\d{2}[\/\.]\d{2})(?!\d)/,
     /(\d{2}[\/\.]\d{2}[\/\.]\d{4})/,
     /(\d{2}[\/\.]\d{2}[\/\.]\d{2})(?!\d)/,
+    /^(\d{2}\s\w+\s\d{4})/i, // 01 janvier 2024
   ];
   
   let dateStr: string | null = null;
@@ -130,23 +120,34 @@ function parseTransactionLine(text: string, rules: any[]): Transaction | null {
   if (!dateStr) return null;
   
   // Parse date
-  const dateParts = dateStr.split(/[\/\.]/);
-  if (dateParts.length !== 3) return null;
+  let date: Date;
+  const numericDateParts = dateStr.split(/[\/\.]/);
   
-  let year = parseInt(dateParts[2]);
-  if (year < 100) year += 2000;
+  if (numericDateParts.length === 3 && numericDateParts.every(p => /^\d+$/.test(p))) {
+    let year = parseInt(numericDateParts[2]);
+    if (year < 100) year += 2000;
+    date = new Date(year, parseInt(numericDateParts[1]) - 1, parseInt(numericDateParts[0]));
+  } else {
+    // Try parsing text date
+    date = new Date(dateStr);
+  }
   
-  const date = new Date(year, parseInt(dateParts[1]) - 1, parseInt(dateParts[0]));
   if (isNaN(date.getTime())) return null;
   
   // Get text after date
   const restOfLine = text.slice(dateMatchIndex + dateStr.length).trim();
   
-  // Extract amounts - multiple patterns for French format
-  // Patterns: 1 234,56 or 1234,56 or -1 234,56 or 1.234,56
+  // Enhanced amount patterns for French format
   const amountPatterns = [
-    /-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g,  // With thousands separator
-    /-?\d+[,\.]\d{2}/g,  // Simple format
+    // With thousands separator (space or non-breaking space)
+    /-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g,
+    // Simple format with comma
+    /-?\d+,\d{2}/g,
+    // Simple format with dot
+    /-?\d+\.\d{2}/g,
+    // Euro symbol attached
+    /-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}\s?€/g,
+    /€\s?-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g,
   ];
   
   let amounts: string[] = [];
@@ -160,11 +161,18 @@ function parseTransactionLine(text: string, rules: any[]): Transaction | null {
   
   if (amounts.length === 0) return null;
   
-  // Parse amounts
-  const parsedAmounts = amounts.map(a => {
-    const cleaned = a.replace(/[\s\u00A0]/g, '').replace(',', '.');
+  // Parse and clean amounts
+  const cleanAmount = (raw: string): number => {
+    const cleaned = raw
+      .replace(/[\s\u00A0]/g, '')
+      .replace('€', '')
+      .replace(',', '.');
     return parseFloat(cleaned);
-  }).filter(a => !isNaN(a) && a !== 0);
+  };
+  
+  const parsedAmounts = amounts
+    .map(cleanAmount)
+    .filter(a => !isNaN(a) && a !== 0);
   
   if (parsedAmounts.length === 0) return null;
   
@@ -172,43 +180,55 @@ function parseTransactionLine(text: string, rules: any[]): Transaction | null {
   let amount = 0;
   let isIncome = false;
   
-  // Caisse d'Épargne: usually DEBIT | CREDIT columns
-  // Or single signed amount
+  // Caisse d'Épargne format: DEBIT | CREDIT columns
   if (parsedAmounts.length >= 2) {
-    // Two columns: debit (usually negative/first), credit (usually positive/second)
     const first = parsedAmounts[0];
     const second = parsedAmounts[1];
     
-    if (Math.abs(first) > 0) {
+    // Usually debit is negative or in first column, credit in second
+    if (Math.abs(first) > 0 && first < 0) {
       amount = Math.abs(first);
-      isIncome = first > 0;
-    } else {
+      isIncome = false;
+    } else if (Math.abs(second) > 0) {
       amount = Math.abs(second);
       isIncome = second > 0;
+    } else {
+      amount = Math.abs(first);
+      isIncome = first > 0;
     }
   } else {
     amount = Math.abs(parsedAmounts[0]);
     isIncome = parsedAmounts[0] > 0;
   }
   
-  if (amount === 0) return null;
+  if (amount === 0 || amount > 1000000) return null; // Sanity check
   
-  // Extract label (text between date and amounts)
+  // Extract label
   let label = restOfLine;
   amounts.forEach(a => {
     label = label.replace(a, '');
   });
-  label = label.replace(/\s+/g, ' ').trim();
+  label = label
+    .replace(/€/g, '')
+    .replace(/EUR/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   
-  // Clean up label - remove common artifacts
-  label = label.replace(/€/g, '').replace(/EUR/gi, '').trim();
-  
-  // Skip if label is too short or is a header/total
+  // Skip invalid labels
   if (label.length < 3) return null;
-  if (/^(total|solde|report|ancien|nouveau|date|libelle|débit|crédit|valeur)/i.test(label)) return null;
+  
+  // Skip headers and totals
+  const skipPatterns = [
+    /^(total|solde|report|ancien|nouveau|date|libelle|libellé)/i,
+    /^(débit|debit|crédit|credit|valeur|montant)/i,
+    /^(page|relevé|compte|iban|bic)/i,
+    /^(banque|agence|caisse)/i,
+  ];
+  
+  if (skipPatterns.some(p => p.test(label))) return null;
   
   const category = categorizeTransaction(label, rules);
-  const id = `${date.getTime()}-${label.slice(0, 10)}-${amount}`.replace(/\s/g, '');
+  const id = `${date.getTime()}-${label.slice(0, 15).replace(/\s/g, '')}-${amount}`;
   
   return {
     id,
@@ -220,7 +240,7 @@ function parseTransactionLine(text: string, rules: any[]): Transaction | null {
   };
 }
 
-// Alternative parser - tries line-by-line with more relaxed matching
+// Alternative parser with more relaxed matching
 async function parsePDFAlternative(file: File): Promise<Transaction[]> {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -231,7 +251,6 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
     const page = await pdf.getPage(pageNum);
     const textContent = await page.getTextContent();
     
-    // Try to reconstruct lines based on position
     const items: { y: number; x: number; text: string }[] = [];
     textContent.items.forEach((item: any) => {
       if (item.str && item.str.trim()) {
@@ -243,7 +262,6 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
       }
     });
     
-    // Group by Y and join
     const lineMap = new Map<number, { x: number; text: string }[]>();
     items.forEach(item => {
       const roundedY = Math.round(item.y / 5) * 5;
@@ -253,7 +271,6 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
       lineMap.get(roundedY)!.push({ x: item.x, text: item.text });
     });
     
-    // Sort and concatenate
     Array.from(lineMap.entries())
       .sort((a, b) => b[0] - a[0])
       .forEach(([, lineItems]) => {
@@ -262,18 +279,57 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
       });
   }
   
-  console.log('[PDF Alt Parser] Full text sample:', fullText.slice(0, 1000));
-  
   const transactions: Transaction[] = [];
   const rules = localStore.getRules();
   const lines = fullText.split('\n');
   
-  for (const line of lines) {
-    const transaction = parseTransactionLine(line, rules);
-    if (transaction) {
-      const isDuplicate = transactions.some(t => t.id === transaction.id);
-      if (!isDuplicate) {
-        transactions.push(transaction);
+  // Also try regex-based extraction on full text
+  const transactionRegex = /(\d{2}[\/\.]\d{2}[\/\.]\d{2,4})\s+(.+?)\s+(-?\d[\d\s,]*[,\.]\d{2})\s*€?/g;
+  
+  let match;
+  while ((match = transactionRegex.exec(fullText)) !== null) {
+    const [, dateStr, label, amountStr] = match;
+    
+    const dateParts = dateStr.split(/[\/\.]/);
+    if (dateParts.length !== 3) continue;
+    
+    let year = parseInt(dateParts[2]);
+    if (year < 100) year += 2000;
+    
+    const date = new Date(year, parseInt(dateParts[1]) - 1, parseInt(dateParts[0]));
+    if (isNaN(date.getTime())) continue;
+    
+    const amount = parseFloat(amountStr.replace(/\s/g, '').replace(',', '.'));
+    if (isNaN(amount) || amount === 0) continue;
+    
+    const cleanLabel = label.trim();
+    if (cleanLabel.length < 3) continue;
+    
+    const category = categorizeTransaction(cleanLabel, rules);
+    const id = `${date.getTime()}-${cleanLabel.slice(0, 15).replace(/\s/g, '')}-${Math.abs(amount)}`;
+    
+    const isDuplicate = transactions.some(t => t.id === id);
+    if (!isDuplicate) {
+      transactions.push({
+        id,
+        date,
+        label: cleanLabel,
+        amount: Math.abs(amount),
+        category,
+        isIncome: amount > 0,
+      });
+    }
+  }
+  
+  // Fallback: line-by-line parsing
+  if (transactions.length === 0) {
+    for (const line of lines) {
+      const transaction = parseTransactionLine(line, rules);
+      if (transaction) {
+        const isDuplicate = transactions.some(t => t.id === transaction.id);
+        if (!isDuplicate) {
+          transactions.push(transaction);
+        }
       }
     }
   }

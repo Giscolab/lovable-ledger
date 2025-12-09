@@ -36,14 +36,17 @@ const Categories = () => {
     localStore.setRules(updatedRules);
   };
 
-  const handleAddKeyword = (category: CategoryType) => {
-    if (!newKeyword.trim()) return;
+  const handleAddKeyword = (category: CategoryType, keyword?: string) => {
+    const keywordToAdd = keyword || newKeyword;
+    if (!keywordToAdd.trim()) return;
     
     const updatedRules = rules.map(rule => {
       if (rule.category === category) {
+        const newKw = keywordToAdd.trim().toLowerCase();
+        if (rule.keywords.includes(newKw)) return rule;
         return {
           ...rule,
-          keywords: [...rule.keywords, newKeyword.trim().toLowerCase()]
+          keywords: [...rule.keywords, newKw]
         };
       }
       return rule;
@@ -211,7 +214,7 @@ const Categories = () => {
 
 interface CategoryCardProps {
   rule: CategoryRule;
-  onAddKeyword: (category: CategoryType) => void;
+  onAddKeyword: (category: CategoryType, keyword?: string) => void;
   onRemoveKeyword: (category: CategoryType, keyword: string) => void;
   onToggleIncompressible: (category: CategoryType) => void;
 }
@@ -223,20 +226,13 @@ const CategoryCard = ({ rule, onAddKeyword, onRemoveKeyword, onToggleIncompressi
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newKeyword.trim()) {
-      // Call parent with keyword
-      const updatedRules = localStore.getRules().map(r => {
-        if (r.category === rule.category) {
-          return { ...r, keywords: [...r.keywords, newKeyword.trim().toLowerCase()] };
-        }
-        return r;
-      });
-      localStore.setRules(updatedRules);
-      window.location.reload(); // Simple refresh for now
+      onAddKeyword(rule.category, newKeyword.trim());
+      setNewKeyword('');
     }
   };
 
   return (
-    <div className="rounded-2xl bg-card p-5 shadow-card">
+    <div className="rounded-2xl glass p-5 shadow-card hover:shadow-card-hover transition-all duration-300">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl">{CATEGORY_ICONS[rule.category]}</span>

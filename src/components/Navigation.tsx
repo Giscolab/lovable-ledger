@@ -26,29 +26,29 @@ export const Navigation = () => {
 
   return (
     <>
-      {/* Desktop Navigation */}
-      <nav className="hidden lg:flex fixed left-0 top-0 h-full w-64 flex-col bg-card border-r border-border p-6 z-40">
+      {/* Desktop Navigation - Mercury Style */}
+      <nav className="hidden lg:flex fixed left-0 top-0 h-full w-64 flex-col glass-strong p-6 z-40">
         <div className="flex items-center gap-3 mb-8">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center glow">
             <span className="text-xl">💰</span>
           </div>
           <div>
-            <h1 className="font-bold text-foreground">Finance Pro</h1>
+            <h1 className="font-bold text-foreground tracking-tight">Finance Pro</h1>
             <p className="text-xs text-muted-foreground">Gestion financière</p>
           </div>
         </div>
 
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+                  'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-glow'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                 )
               }
             >
@@ -58,7 +58,7 @@ export const Navigation = () => {
           ))}
         </div>
 
-        <div className="pt-6 border-t border-border">
+        <div className="pt-6 border-t border-border/50">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Thème</span>
             <ThemeToggle />
@@ -69,19 +69,19 @@ export const Navigation = () => {
         </div>
       </nav>
 
-      {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border flex items-center justify-between px-4 z-40">
+      {/* Mobile Header - Mercury Style */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 glass-strong flex items-center justify-between px-4 z-40">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <span className="text-lg">💰</span>
           </div>
-          <h1 className="font-bold text-foreground">Finance Pro</h1>
+          <h1 className="font-bold text-foreground tracking-tight">Finance Pro</h1>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 rounded-lg hover:bg-muted"
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors"
           >
             {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -114,18 +114,18 @@ export const Navigation = () => {
         </div>
       )}
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border flex items-center justify-around z-40">
+      {/* Mobile Bottom Navigation - Mercury Style */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 glass-strong flex items-center justify-around z-40">
         {navItems.slice(0, 5).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
               cn(
-                'flex flex-col items-center gap-1 p-2 rounded-lg transition-all',
+                'flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200',
                 isActive
                   ? 'text-primary'
-                  : 'text-muted-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               )
             }
           >
