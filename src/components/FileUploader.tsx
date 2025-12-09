@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Upload, FileText, Download, Trash2, FileSpreadsheet } from 'lucide-react';
 import { parseCSV, generateSampleCSV } from '@/utils/parseCSV';
 import { parsePDF } from '@/utils/parsePDF';
 import { Transaction } from '@/utils/types';
+import { ImportPreviewModal } from './ImportPreviewModal';
 import { cn } from '@/lib/utils';
 
 interface FileUploaderProps {
@@ -16,6 +17,18 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileType, setFileType] = useState<'csv' | 'pdf' | null>(null);
+  const [previewTransactions, setPreviewTransactions] = useState<Transaction[] | null>(null);
+  const [previewSource, setPreviewSource] = useState<'csv' | 'pdf'>('csv');
+
+  // Listen for import shortcut
+  useEffect(() => {
+    const handleImportShortcut = () => {
+      const input = document.querySelector('input[type="file"][accept=".csv,.pdf"]') as HTMLInputElement;
+      if (input) input.click();
+    };
+    window.addEventListener('shortcut-import', handleImportShortcut);
+    return () => window.removeEventListener('shortcut-import', handleImportShortcut);
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     const isPDF = file.name.toLowerCase().endsWith('.pdf');
@@ -42,7 +55,9 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
       if (transactions.length === 0) {
         setError('Aucune transaction valide trouvée dans le fichier');
       } else {
-        onUpload(transactions);
+        // Show preview instead of direct import
+        setPreviewTransactions(transactions);
+        setPreviewSource(isPDF ? 'pdf' : 'csv');
       }
     } catch (err) {
       console.error('Parse error:', err);
@@ -51,7 +66,16 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
       setIsLoading(false);
       setFileType(null);
     }
-  }, [onUpload]);
+  }, []);
+
+  const handlePreviewConfirm = (transactions: Transaction[]) => {
+    onUpload(transactions);
+    setPreviewTransactions(null);
+  };
+
+  const handlePreviewCancel = () => {
+    setPreviewTransactions(null);
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -160,6 +184,16 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
           </button>
         )}
       </div>
+
+      {/* Import Preview Modal */}
+      {previewTransactions && (
+        <ImportPreviewModal
+          transactions={previewTransactions}
+          source={previewSource}
+          onConfirm={handlePreviewConfirm}
+          onCancel={handlePreviewCancel}
+        />
+      )}
     </div>
   );
 };

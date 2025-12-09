@@ -17,8 +17,9 @@ import { checkBudgetAlerts } from '@/utils/budgets';
 import { detectRecurringTransactions } from '@/utils/recurring';
 import { categorizeTransaction } from '@/utils/categorize';
 import { generateManualTransactionId } from '@/utils/transactionId';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { toast } from '@/hooks/use-toast';
-import { ArrowRight, BarChart3, Plus } from 'lucide-react';
+import { ArrowRight, BarChart3, Plus, Undo2, Redo2 } from 'lucide-react';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -26,25 +27,27 @@ const Index = () => {
   const [selectedMonth, setSelectedMonth] = useState<{ month: number; year: number; label: string } | null>(null);
   const [stats, setStats] = useState<MonthlyStatsType | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const { saveState, undo, redo, canUndo, canRedo } = useUndoRedo();
 
   useEffect(() => {
     const loadTransactions = () => {
       const saved = localStore.getTransactions();
-      if (saved.length > 0) {
-        setTransactions(saved);
-      }
+      setTransactions(saved);
     };
 
     loadTransactions();
 
-    // Listen for transactions added from FAB
-    const handleTransactionAdded = () => {
-      loadTransactions();
-    };
+    // Listen for transactions added from FAB or other sources
+    const handleTransactionAdded = () => loadTransactions();
     window.addEventListener('transaction-added', handleTransactionAdded);
+
+    // Listen for new transaction shortcut
+    const handleNewTransaction = () => setShowAddModal(true);
+    window.addEventListener('shortcut-new-transaction', handleNewTransaction);
 
     return () => {
       window.removeEventListener('transaction-added', handleTransactionAdded);
+      window.removeEventListener('shortcut-new-transaction', handleNewTransaction);
     };
   }, []);
 
@@ -73,24 +76,28 @@ const Index = () => {
   }, [selectedMonth, transactions]);
 
   const handleUpload = useCallback((newTransactions: Transaction[]) => {
+    saveState('Avant import');
     const result = localStore.addTransactions(newTransactions);
     setTransactions(result.all);
+    saveState(`Import ${result.added} transactions`);
     toast({
       title: 'Import réussi',
       description: `${result.added} transactions ajoutées, ${result.skipped} doublons ignorés`,
     });
-  }, []);
+  }, [saveState]);
 
   const handleClear = useCallback(() => {
+    saveState('Avant effacement');
     localStore.clearTransactions();
     setTransactions([]);
     setStats(null);
     setSelectedMonth(null);
+    saveState('Données effacées');
     toast({
       title: 'Données effacées',
       description: 'Toutes les transactions ont été supprimées',
     });
-  }, []);
+  }, [saveState]);
 
   const handleCategoryChange = useCallback((id: string, category: CategoryType) => {
     setTransactions(prev => {
@@ -103,24 +110,29 @@ const Index = () => {
   }, []);
 
   const handleTransactionUpdate = useCallback((transaction: Transaction) => {
+    saveState('Avant modification');
     setTransactions(prev => {
       const updated = prev.map(t => t.id === transaction.id ? transaction : t);
       localStore.setTransactions(updated);
       return updated;
     });
+    saveState('Transaction modifiée');
     toast({ title: 'Transaction modifiée' });
-  }, []);
+  }, [saveState]);
 
   const handleTransactionDelete = useCallback((id: string) => {
+    saveState('Avant suppression');
     setTransactions(prev => {
       const updated = prev.filter(t => t.id !== id);
       localStore.setTransactions(updated);
       return updated;
     });
+    saveState('Transaction supprimée');
     toast({ title: 'Transaction supprimée' });
-  }, []);
+  }, [saveState]);
 
   const handleTransactionAdd = useCallback((transaction: Omit<Transaction, 'id'>) => {
+    saveState('Avant ajout');
     const rules = localStore.getRules();
     const newTransaction: Transaction = {
       ...transaction,
@@ -135,8 +147,9 @@ const Index = () => {
       localStore.setTransactions(updated);
       return updated;
     });
+    saveState('Transaction ajoutée');
     toast({ title: 'Transaction ajoutée' });
-  }, []);
+  }, [saveState]);
 
   const availableMonths = getAvailableMonths(transactions);
   const filteredTransactions = selectedMonth
@@ -176,6 +189,26 @@ const Index = () => {
               Voir le tableau de bord
               <ArrowRight className="h-4 w-4" />
             </button>
+            
+            {/* Undo/Redo buttons */}
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-card px-2">
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                className="p-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Annuler (Ctrl+Z)"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                className="p-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Rétablir (Ctrl+Shift+Z)"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Budget Alerts */}

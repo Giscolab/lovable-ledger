@@ -7,6 +7,8 @@ import { useEffect, useCallback } from "react";
 import { Navigation } from "@/components/Navigation";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { localStore } from "@/utils/localStore";
 import { categorizeTransaction } from "@/utils/categorize";
 import { generateManualTransactionId } from "@/utils/transactionId";
@@ -27,6 +29,9 @@ const queryClient = new QueryClient();
 
 const AppContent = () => {
   const navigate = useNavigate();
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts();
 
   useEffect(() => {
     const theme = localStore.getTheme();
@@ -56,6 +61,7 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-background">
       <OfflineIndicator />
+      <KeyboardShortcutsHelp />
       <Navigation />
       <main className="lg:ml-64 pt-16 lg:pt-0 pb-20 lg:pb-8">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
