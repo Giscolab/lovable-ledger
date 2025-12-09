@@ -225,7 +225,6 @@ const Index = () => {
               onCategoryChange={handleCategoryChange}
               onTransactionUpdate={handleTransactionUpdate}
               onTransactionDelete={handleTransactionDelete}
-              onTransactionAdd={handleTransactionAdd}
             />
           </section>
         </>
@@ -251,7 +250,6 @@ const Index = () => {
             onCategoryChange={handleCategoryChange}
             onTransactionUpdate={handleTransactionUpdate}
             onTransactionDelete={handleTransactionDelete}
-            onTransactionAdd={handleTransactionAdd}
           />
           
           {transactions.length === 0 && (

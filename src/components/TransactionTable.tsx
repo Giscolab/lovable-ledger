@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, ChevronDown, Edit2, Trash2, Plus } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ChevronDown, Edit2, Trash2 } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CategoryTag } from './CategoryTag';
 import { CATEGORY_LABELS } from '@/utils/categories';
 import { formatCurrency } from '@/utils/computeStats';
 import { TransactionEditModal } from './TransactionEditModal';
-import { TransactionAddForm } from './TransactionAddForm';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { cn } from '@/lib/utils';
 
@@ -22,11 +21,9 @@ export const TransactionTable = ({
   onCategoryChange,
   onTransactionUpdate,
   onTransactionDelete,
-  onTransactionAdd,
 }: TransactionTableProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
 
   const sortedTransactions = [...transactions].sort(
@@ -65,14 +62,7 @@ export const TransactionTable = ({
     setEditingTransaction(null);
   };
 
-  const handleAdd = (transaction: Omit<Transaction, 'id'>) => {
-    if (onTransactionAdd) {
-      onTransactionAdd(transaction);
-    }
-    setShowAddForm(false);
-  };
-
-  if (transactions.length === 0 && !onTransactionAdd) {
+  if (transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl bg-card p-12 text-center shadow-card">
         <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -89,17 +79,6 @@ export const TransactionTable = ({
   return (
     <>
       <div className="overflow-hidden rounded-2xl bg-card shadow-card">
-        {onTransactionAdd && (
-          <div className="px-4 py-3 border-b border-border flex justify-end">
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Ajouter
-            </button>
-          </div>
-        )}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -235,17 +214,14 @@ export const TransactionTable = ({
         <TransactionEditModal
           transaction={editingTransaction}
           onSave={handleSave}
-          onDelete={(id) => setDeleteConfirm({ id, label: editingTransaction.label })}
+          onDelete={(id) => {
+            onTransactionDelete(id);
+            setEditingTransaction(null);
+          }}
           onClose={() => setEditingTransaction(null)}
         />
       )}
 
-      {showAddForm && onTransactionAdd && (
-        <TransactionAddForm
-          onAdd={handleAdd}
-          onClose={() => setShowAddForm(false)}
-        />
-      )}
 
       {deleteConfirm && (
         <ConfirmDeleteModal

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Save, Trash2, Plus, Tag } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CATEGORY_LABELS } from '@/utils/categories';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { cn } from '@/lib/utils';
 
 interface TransactionEditModalProps {
@@ -27,6 +28,7 @@ export const TransactionEditModal = ({
     tags: transaction.tags || [],
   });
   const [newTag, setNewTag] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const categories = Object.keys(CATEGORY_LABELS) as CategoryType[];
 
@@ -232,7 +234,7 @@ export const TransactionEditModal = ({
           <div className="flex gap-3 pt-4">
             <button
               type="button"
-              onClick={() => onDelete(transaction.id)}
+              onClick={() => setShowDeleteConfirm(true)}
               className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition-colors"
             >
               <Trash2 className="h-4 w-4" />
@@ -248,6 +250,19 @@ export const TransactionEditModal = ({
           </div>
         </form>
       </div>
+
+      {showDeleteConfirm && (
+        <ConfirmDeleteModal
+          title="Supprimer cette transaction ?"
+          itemLabel={transaction.label}
+          message="Cette action est irréversible."
+          onConfirm={() => {
+            onDelete(transaction.id);
+            setShowDeleteConfirm(false);
+          }}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 };
