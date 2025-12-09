@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Sparkles } from 'lucide-react';
-import { Transaction, CategoryType } from '@/utils/types';
+import { Plus, X, Sparkles, CreditCard } from 'lucide-react';
+import { Transaction, CategoryType, Account } from '@/utils/types';
 import { CATEGORY_LABELS } from '@/utils/categories';
 import { categorizeTransaction } from '@/utils/categorize';
 import { localStore } from '@/utils/localStore';
@@ -9,9 +9,11 @@ import { cn } from '@/lib/utils';
 interface TransactionAddFormProps {
   onAdd: (transaction: Omit<Transaction, 'id'>) => void;
   onClose: () => void;
+  defaultAccountId?: string;
 }
 
-export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) => {
+export const TransactionAddForm = ({ onAdd, onClose, defaultAccountId }: TransactionAddFormProps) => {
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [form, setForm] = useState({
     label: '',
     amount: '',
@@ -19,6 +21,7 @@ export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) 
     date: new Date().toISOString().split('T')[0],
     isIncome: false,
     notes: '',
+    accountId: defaultAccountId || '',
   });
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -26,6 +29,15 @@ export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) 
 
   const categories = Object.keys(CATEGORY_LABELS) as CategoryType[];
   const rules = localStore.getRules();
+
+  useEffect(() => {
+    const accts = localStore.getAccounts();
+    setAccounts(accts);
+    if (!form.accountId && accts.length > 0) {
+      const selectedId = localStore.getSelectedAccountId() || accts[0].id;
+      setForm(prev => ({ ...prev, accountId: selectedId }));
+    }
+  }, []);
 
   // Auto-categorization when label changes
   useEffect(() => {
@@ -67,9 +79,10 @@ export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(form.amount);
-    if (!form.label || isNaN(amount) || amount <= 0) return;
+    if (!form.label || isNaN(amount) || amount <= 0 || !form.accountId) return;
 
     onAdd({
+      accountId: form.accountId,
       label: form.label,
       amount,
       category: form.category,

@@ -234,6 +234,7 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
   
   return {
     id,
+    accountId: '', // Will be set during import
     date,
     label,
     amount,
@@ -319,6 +320,7 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
     if (!isDuplicate) {
       transactions.push({
         id,
+        accountId: '', // Will be set during import
         date,
         label: cleanLabel,
         amount: absAmount,

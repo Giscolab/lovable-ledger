@@ -81,6 +81,7 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
 
             transactions.push({
               id,
+              accountId: '', // Will be set during import
               date,
               label,
               amount: absAmount,
