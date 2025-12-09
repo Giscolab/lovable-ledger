@@ -6,7 +6,9 @@ import {
   History, 
   Upload,
   Menu,
-  X
+  X,
+  Wallet,
+  Target
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -15,6 +17,8 @@ import { ThemeToggle } from './ThemeToggle';
 const navItems = [
   { path: '/', label: 'Import', icon: Upload },
   { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+  { path: '/budgets', label: 'Budgets', icon: Wallet },
+  { path: '/goals', label: 'Objectifs', icon: Target },
   { path: '/projection', label: 'Prévisionnel', icon: TrendingUp },
   { path: '/categories', label: 'Catégories', icon: Tags },
   { path: '/history', label: 'Historique', icon: History },

@@ -1,18 +1,31 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, ChevronDown } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ChevronDown, Edit2, Trash2, Plus } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CategoryTag } from './CategoryTag';
 import { CATEGORY_LABELS } from '@/utils/categories';
 import { formatCurrency } from '@/utils/computeStats';
+import { TransactionEditModal } from './TransactionEditModal';
+import { TransactionAddForm } from './TransactionAddForm';
 import { cn } from '@/lib/utils';
 
 interface TransactionTableProps {
   transactions: Transaction[];
   onCategoryChange: (id: string, category: CategoryType) => void;
+  onTransactionUpdate?: (transaction: Transaction) => void;
+  onTransactionDelete?: (id: string) => void;
+  onTransactionAdd?: (transaction: Omit<Transaction, 'id'>) => void;
 }
 
-export const TransactionTable = ({ transactions, onCategoryChange }: TransactionTableProps) => {
+export const TransactionTable = ({ 
+  transactions, 
+  onCategoryChange,
+  onTransactionUpdate,
+  onTransactionDelete,
+  onTransactionAdd,
+}: TransactionTableProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const sortedTransactions = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -27,7 +40,32 @@ export const TransactionTable = ({ transactions, onCategoryChange }: Transaction
 
   const categories = Object.keys(CATEGORY_LABELS) as CategoryType[];
 
-  if (transactions.length === 0) {
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+  };
+
+  const handleSave = (updated: Transaction) => {
+    if (onTransactionUpdate) {
+      onTransactionUpdate(updated);
+    }
+    setEditingTransaction(null);
+  };
+
+  const handleDelete = (id: string) => {
+    if (onTransactionDelete) {
+      onTransactionDelete(id);
+    }
+    setEditingTransaction(null);
+  };
+
+  const handleAdd = (transaction: Omit<Transaction, 'id'>) => {
+    if (onTransactionAdd) {
+      onTransactionAdd(transaction);
+    }
+    setShowAddForm(false);
+  };
+
+  if (transactions.length === 0 && !onTransactionAdd) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl bg-card p-12 text-center shadow-card">
         <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -42,87 +80,148 @@ export const TransactionTable = ({ transactions, onCategoryChange }: Transaction
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-card shadow-card">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Date
-              </th>
-              <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Libellé
-              </th>
-              <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Catégorie
-              </th>
-              <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Montant
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {sortedTransactions.map((transaction, index) => (
-              <tr
-                key={transaction.id}
-                className="group transition-colors hover:bg-muted/30"
-                style={{ animationDelay: `${index * 30}ms` }}
-              >
-                <td className="whitespace-nowrap px-4 py-4 text-sm text-muted-foreground">
-                  {formatDate(transaction.date)}
-                </td>
-                <td className="px-4 py-4">
-                  <p className="text-sm font-medium text-foreground line-clamp-1">
-                    {transaction.label}
-                  </p>
-                </td>
-                <td className="px-4 py-4">
-                  {editingId === transaction.id ? (
-                    <select
-                      value={transaction.category}
-                      onChange={(e) => {
-                        onCategoryChange(transaction.id, e.target.value as CategoryType);
-                        setEditingId(null);
-                      }}
-                      onBlur={() => setEditingId(null)}
-                      autoFocus
-                      className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {CATEGORY_LABELS[cat]}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <button
-                      onClick={() => setEditingId(transaction.id)}
-                      className="group/tag flex items-center gap-1"
-                    >
-                      <CategoryTag category={transaction.category} size="sm" />
-                      <ChevronDown className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover/tag:opacity-100" />
-                    </button>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-right">
-                  <div className={cn(
-                    'flex items-center justify-end gap-1 font-semibold',
-                    transaction.isIncome ? 'text-success' : 'text-foreground'
-                  )}>
-                    {transaction.isIncome ? (
-                      <ArrowUpRight className="h-4 w-4" />
-                    ) : (
-                      <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    {transaction.isIncome ? '+' : '-'}
-                    {formatCurrency(transaction.amount)}
-                  </div>
-                </td>
+    <>
+      <div className="overflow-hidden rounded-2xl bg-card shadow-card">
+        {onTransactionAdd && (
+          <div className="px-4 py-3 border-b border-border flex justify-end">
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter
+            </button>
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Date
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Libellé
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Catégorie
+                </th>
+                <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Montant
+                </th>
+                {(onTransactionUpdate || onTransactionDelete) && (
+                  <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Actions
+                  </th>
+                )}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sortedTransactions.map((transaction, index) => (
+                <tr
+                  key={transaction.id}
+                  className="group transition-colors hover:bg-muted/30"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <td className="whitespace-nowrap px-4 py-4 text-sm text-muted-foreground">
+                    {formatDate(transaction.date)}
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="text-sm font-medium text-foreground line-clamp-1">
+                      {transaction.label}
+                    </p>
+                    {transaction.notes && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        {transaction.notes}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    {editingId === transaction.id ? (
+                      <select
+                        value={transaction.category}
+                        onChange={(e) => {
+                          onCategoryChange(transaction.id, e.target.value as CategoryType);
+                          setEditingId(null);
+                        }}
+                        onBlur={() => setEditingId(null)}
+                        autoFocus
+                        className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        {categories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {CATEGORY_LABELS[cat]}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => setEditingId(transaction.id)}
+                        className="group/tag flex items-center gap-1"
+                      >
+                        <CategoryTag category={transaction.category} size="sm" />
+                        <ChevronDown className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover/tag:opacity-100" />
+                      </button>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4 text-right">
+                    <div className={cn(
+                      'flex items-center justify-end gap-1 font-semibold',
+                      transaction.isIncome ? 'text-success' : 'text-foreground'
+                    )}>
+                      {transaction.isIncome ? (
+                        <ArrowUpRight className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      {transaction.isIncome ? '+' : '-'}
+                      {formatCurrency(transaction.amount)}
+                    </div>
+                  </td>
+                  {(onTransactionUpdate || onTransactionDelete) && (
+                    <td className="whitespace-nowrap px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onTransactionUpdate && (
+                          <button
+                            onClick={() => handleEdit(transaction)}
+                            className="p-2 rounded-lg hover:bg-muted transition-colors"
+                          >
+                            <Edit2 className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        )}
+                        {onTransactionDelete && (
+                          <button
+                            onClick={() => handleDelete(transaction.id)}
+                            className="p-2 rounded-lg hover:bg-destructive/10 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+
+      {editingTransaction && onTransactionUpdate && onTransactionDelete && (
+        <TransactionEditModal
+          transaction={editingTransaction}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onClose={() => setEditingTransaction(null)}
+        />
+      )}
+
+      {showAddForm && onTransactionAdd && (
+        <TransactionAddForm
+          onAdd={handleAdd}
+          onClose={() => setShowAddForm(false)}
+        />
+      )}
+    </>
   );
 };

@@ -11,6 +11,8 @@ import Dashboard from "./pages/Dashboard";
 import Projection from "./pages/Projection";
 import Categories from "./pages/Categories";
 import History from "./pages/History";
+import Budgets from "./pages/Budgets";
+import Goals from "./pages/Goals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const AppContent = () => {
             <Route path="/projection" element={<Projection />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/history" element={<History />} />
+            <Route path="/budgets" element={<Budgets />} />
+            <Route path="/goals" element={<Goals />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

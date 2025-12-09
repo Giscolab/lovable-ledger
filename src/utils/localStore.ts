@@ -1,5 +1,7 @@
 import { Transaction, CategoryRule, ProjectionSettings } from './types';
 import { DEFAULT_CATEGORY_RULES } from './categories';
+import { Budget, DEFAULT_BUDGETS } from './budgets';
+import { FinancialGoal } from './goals';
 
 const STORAGE_KEYS = {
   TRANSACTIONS: 'finance_transactions',
@@ -7,6 +9,8 @@ const STORAGE_KEYS = {
   THEME: 'finance_theme',
   PROJECTION: 'finance_projection',
   LAST_MONTH: 'finance_last_month',
+  BUDGETS: 'finance_budgets',
+  GOALS: 'finance_goals',
 };
 
 export const localStore = {
@@ -101,6 +105,36 @@ export const localStore = {
 
   setLastMonth: (month: string): void => {
     localStorage.setItem(STORAGE_KEYS.LAST_MONTH, month);
+  },
+
+  // Budgets
+  getBudgets: (): Budget[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.BUDGETS);
+    if (!data) return DEFAULT_BUDGETS;
+    try {
+      return JSON.parse(data);
+    } catch {
+      return DEFAULT_BUDGETS;
+    }
+  },
+
+  setBudgets: (budgets: Budget[]): void => {
+    localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
+  },
+
+  // Goals
+  getGoals: (): FinancialGoal[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.GOALS);
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  },
+
+  setGoals: (goals: FinancialGoal[]): void => {
+    localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
   },
 
   // Clear all
