@@ -135,6 +135,23 @@ export const TransactionTable = ({
                         {transaction.notes}
                       </p>
                     )}
+                    {transaction.tags && transaction.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {transaction.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                        {transaction.tags.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            +{transaction.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-4">
                     {editingId === transaction.id ? (
