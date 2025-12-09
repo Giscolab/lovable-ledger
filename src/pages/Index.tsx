@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/Header';
-import { CSVUploader } from '@/components/CSVUploader';
+import { FileUploader } from '@/components/FileUploader';
 import { TransactionTable } from '@/components/TransactionTable';
 import { DonutChart } from '@/components/DonutChart';
 import { MonthlyStats } from '@/components/MonthlyStats';
@@ -103,7 +103,7 @@ const Index = () => {
           <h2 className="mb-4 text-xl font-semibold text-foreground">
             Importer vos relevés
           </h2>
-          <CSVUploader 
+          <FileUploader 
             onUpload={handleUpload} 
             onClear={handleClear}
             hasData={transactions.length > 0}
@@ -168,7 +168,7 @@ const Index = () => {
               Commencez votre analyse
             </h3>
             <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-              Importez votre relevé bancaire au format CSV pour visualiser vos dépenses et planifier votre épargne.
+              Importez votre relevé bancaire (CSV ou PDF) pour visualiser vos dépenses et planifier votre épargne.
             </p>
           </div>
         )}
