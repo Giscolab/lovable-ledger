@@ -2,6 +2,7 @@ import Papa from 'papaparse';
 import { Transaction, CategoryType } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
+import { computeTransactionId } from './transactionId';
 
 export const parseCSV = (file: File): Promise<Transaction[]> => {
   return new Promise((resolve, reject) => {
@@ -12,6 +13,7 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
         try {
           const rules = localStore.getRules();
           const transactions: Transaction[] = [];
+          const now = new Date().toISOString();
 
           results.data.forEach((row: any, index: number) => {
             // Skip header row if present
@@ -72,17 +74,21 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
 
             const isIncome = amount > 0;
             const category = categorizeTransaction(label, rules);
+            const absAmount = Math.abs(amount);
 
-            // Generate unique ID
-            const id = `${date.getTime()}-${label.slice(0, 10)}-${amount}`.replace(/\s/g, '');
+            // Generate deterministic ID for deduplication
+            const id = computeTransactionId(date, label, absAmount, 'csv');
 
             transactions.push({
               id,
               date,
               label,
-              amount: Math.abs(amount),
+              amount: absAmount,
               category,
               isIncome,
+              source: 'csv',
+              createdAt: now,
+              tags: [],
             });
           });
 

@@ -8,12 +8,14 @@ import { IncompressibleCard } from '@/components/IncompressibleCard';
 import { MonthSelector } from '@/components/MonthSelector';
 import { BudgetAlertCard } from '@/components/BudgetAlertCard';
 import { RecurringTransactions } from '@/components/RecurringTransactions';
+import { GoalsWidget } from '@/components/GoalsWidget';
 import { Transaction, CategoryType, MonthlyStats as MonthlyStatsType } from '@/utils/types';
 import { localStore } from '@/utils/localStore';
 import { computeMonthlyStats, getAvailableMonths } from '@/utils/computeStats';
 import { checkBudgetAlerts } from '@/utils/budgets';
 import { detectRecurringTransactions } from '@/utils/recurring';
 import { categorizeTransaction } from '@/utils/categorize';
+import { generateManualTransactionId } from '@/utils/transactionId';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, BarChart3 } from 'lucide-react';
 
@@ -55,11 +57,11 @@ const Index = () => {
   }, [selectedMonth, transactions]);
 
   const handleUpload = useCallback((newTransactions: Transaction[]) => {
-    const all = localStore.addTransactions(newTransactions);
-    setTransactions(all);
+    const result = localStore.addTransactions(newTransactions);
+    setTransactions(result.all);
     toast({
       title: 'Import réussi',
-      description: `${newTransactions.length} transactions importées`,
+      description: `${result.added} transactions ajoutées, ${result.skipped} doublons ignorés`,
     });
   }, []);
 
@@ -106,8 +108,11 @@ const Index = () => {
     const rules = localStore.getRules();
     const newTransaction: Transaction = {
       ...transaction,
-      id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: generateManualTransactionId(transaction.date, transaction.label, transaction.amount),
       category: transaction.category || categorizeTransaction(transaction.label, rules),
+      source: transaction.source || 'manual',
+      createdAt: transaction.createdAt || new Date().toISOString(),
+      tags: transaction.tags || [],
     };
     setTransactions(prev => {
       const updated = [...prev, newTransaction];
@@ -160,8 +165,14 @@ const Index = () => {
           {/* Budget Alerts */}
           {alerts.length > 0 && <BudgetAlertCard alerts={alerts} />}
 
-          {/* Recurring Transactions */}
-          <RecurringTransactions recurring={recurringTransactions} />
+          {/* Widgets Row */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Recurring Transactions */}
+            <RecurringTransactions recurring={recurringTransactions} />
+            
+            {/* Goals Widget */}
+            <GoalsWidget />
+          </div>
 
           {/* Month Selector */}
           <div className="flex items-center justify-between">

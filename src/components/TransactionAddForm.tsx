@@ -33,6 +33,9 @@ export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) 
       date: new Date(form.date),
       isIncome: form.isIncome,
       notes: form.notes || undefined,
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+      tags: [],
     });
   };
 

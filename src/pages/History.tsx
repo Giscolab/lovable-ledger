@@ -3,18 +3,18 @@ import {
   Search, 
   Download, 
   Filter,
-  Calendar,
   TrendingUp,
   TrendingDown,
   ArrowUpDown,
   FileDown,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Tag
 } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { localStore } from '@/utils/localStore';
 import { CATEGORY_LABELS, CATEGORY_ICONS } from '@/utils/categories';
-import { formatCurrencyFull, getAvailableYears, computeYearlyStats } from '@/utils/computeStats';
+import { formatCurrencyFull, getAllTags } from '@/utils/computeStats';
 import { cn } from '@/lib/utils';
 
 type SortField = 'date' | 'amount' | 'label' | 'category';
@@ -25,6 +25,7 @@ const History = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'all'>('all');
+  const [selectedTag, setSelectedTag] = useState<string | 'all'>('all');
   const [showIncomeOnly, setShowIncomeOnly] = useState<boolean | null>(null);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -35,7 +36,13 @@ const History = () => {
     setTransactions(localStore.getTransactions());
   }, []);
 
-  const availableYears = useMemo(() => getAvailableYears(transactions), [transactions]);
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    transactions.forEach(t => years.add(new Date(t.date).getFullYear()));
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions]);
+
+  const availableTags = useMemo(() => getAllTags(transactions), [transactions]);
   
   const filteredTransactions = useMemo(() => {
     return transactions
@@ -48,7 +55,9 @@ const History = () => {
           t.category === selectedCategory;
         const matchesType = showIncomeOnly === null || 
           t.isIncome === showIncomeOnly;
-        return matchesSearch && matchesYear && matchesCategory && matchesType;
+        const matchesTag = selectedTag === 'all' ||
+          (t.tags && t.tags.includes(selectedTag));
+        return matchesSearch && matchesYear && matchesCategory && matchesType && matchesTag;
       })
       .sort((a, b) => {
         let comparison = 0;
@@ -68,7 +77,7 @@ const History = () => {
         }
         return sortDirection === 'desc' ? -comparison : comparison;
       });
-  }, [transactions, searchTerm, selectedYear, selectedCategory, showIncomeOnly, sortField, sortDirection]);
+  }, [transactions, searchTerm, selectedYear, selectedCategory, showIncomeOnly, selectedTag, sortField, sortDirection]);
 
   const paginatedTransactions = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -93,13 +102,15 @@ const History = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Libellé', 'Montant', 'Type', 'Catégorie'];
+    const headers = ['Date', 'Libellé', 'Montant', 'Type', 'Catégorie', 'Tags', 'Source'];
     const rows = filteredTransactions.map(t => [
       new Date(t.date).toLocaleDateString('fr-FR'),
       t.label,
       t.isIncome ? t.amount.toString() : (-t.amount).toString(),
       t.isIncome ? 'Revenu' : 'Dépense',
-      CATEGORY_LABELS[t.category]
+      CATEGORY_LABELS[t.category],
+      (t.tags || []).join(', '),
+      t.source || 'N/A'
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(';')).join('\n');
@@ -229,6 +240,20 @@ const History = () => {
             ))}
           </select>
 
+          {/* Tag Filter */}
+          {availableTags.length > 0 && (
+            <select
+              value={selectedTag}
+              onChange={(e) => { setSelectedTag(e.target.value); setCurrentPage(1); }}
+              className="rounded-xl border border-border bg-background px-4 py-3 focus:border-primary focus:outline-none"
+            >
+              <option value="all">Tous les tags</option>
+              {availableTags.map(tag => (
+                <option key={tag} value={tag}>#{tag}</option>
+              ))}
+            </select>
+          )}
+
           {/* Type Filter */}
           <div className="flex rounded-xl border border-border overflow-hidden">
             <button
@@ -320,8 +345,22 @@ const History = () => {
                   <td className="px-4 py-3 text-sm text-foreground">
                     {new Date(t.date).toLocaleDateString('fr-FR')}
                   </td>
-                  <td className="px-4 py-3 text-sm text-foreground max-w-xs truncate">
-                    {t.label}
+                  <td className="px-4 py-3 text-sm text-foreground">
+                    <div className="max-w-xs">
+                      <p className="truncate">{t.label}</p>
+                      {t.tags && t.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {t.tags.slice(0, 3).map(tag => (
+                            <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs">
+                              #{tag}
+                            </span>
+                          ))}
+                          {t.tags.length > 3 && (
+                            <span className="text-xs text-muted-foreground">+{t.tags.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2 py-1 text-xs font-medium">
