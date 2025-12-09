@@ -28,10 +28,24 @@ const Index = () => {
   const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
-    const saved = localStore.getTransactions();
-    if (saved.length > 0) {
-      setTransactions(saved);
-    }
+    const loadTransactions = () => {
+      const saved = localStore.getTransactions();
+      if (saved.length > 0) {
+        setTransactions(saved);
+      }
+    };
+
+    loadTransactions();
+
+    // Listen for transactions added from FAB
+    const handleTransactionAdded = () => {
+      loadTransactions();
+    };
+    window.addEventListener('transaction-added', handleTransactionAdded);
+
+    return () => {
+      window.removeEventListener('transaction-added', handleTransactionAdded);
+    };
   }, []);
 
   useEffect(() => {

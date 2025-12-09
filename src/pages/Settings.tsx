@@ -1,13 +1,25 @@
-import { useState } from 'react';
-import { Settings as SettingsIcon, Moon, Sun, Database, Trash2, Download, Upload, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, Moon, Sun, Database, Trash2, Download, Upload, AlertTriangle, Wallet } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { BackupRestore } from '@/components/BackupRestore';
 import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 import { localStore } from '@/utils/localStore';
+import { formatCurrency } from '@/utils/computeStats';
 import { toast } from 'sonner';
 
 const Settings = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [initialBalance, setInitialBalance] = useState(0);
+
+  useEffect(() => {
+    setInitialBalance(localStore.getInitialBalance());
+  }, []);
+
+  const handleInitialBalanceChange = (value: number) => {
+    setInitialBalance(value);
+    localStore.setInitialBalance(value);
+    toast.success('Solde initial mis à jour');
+  };
 
   const handleResetAllData = () => {
     localStore.clearAll();
@@ -47,6 +59,36 @@ const Settings = () => {
           </div>
           <ThemeToggle />
         </div>
+      </section>
+
+      {/* Initial Balance Section */}
+      <section className="rounded-2xl bg-card p-6 shadow-card">
+        <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Wallet className="h-5 w-5" />
+          Solde initial
+        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="font-medium text-foreground">Solde de départ pour le cashflow</p>
+            <p className="text-sm text-muted-foreground">
+              Ce montant sera utilisé comme point de départ dans les graphiques de cashflow journalier
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={initialBalance}
+              onChange={(e) => setInitialBalance(parseFloat(e.target.value) || 0)}
+              onBlur={() => handleInitialBalanceChange(initialBalance)}
+              className="w-32 rounded-xl border border-border bg-background px-4 py-2 text-right font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              step="100"
+            />
+            <span className="text-muted-foreground">€</span>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Actuel: {formatCurrency(initialBalance)}
+        </p>
       </section>
 
       {/* Data Stats Section */}

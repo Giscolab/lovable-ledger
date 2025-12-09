@@ -7,6 +7,7 @@ import {
   getUpcomingRecurring 
 } from '@/utils/recurring';
 import { CategoryTag } from './CategoryTag';
+import { Sparkline } from './Sparkline';
 import { formatCurrency } from '@/utils/computeStats';
 import { cn } from '@/lib/utils';
 
@@ -109,42 +110,60 @@ export const RecurringTransactions = ({ recurring }: RecurringTransactionsProps)
 
           {/* Recurring list */}
           <div className="space-y-2">
-            {displayedRecurring.map((r) => (
-              <div
-                key={r.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <CategoryTag category={r.category} size="sm" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate max-w-[180px] sm:max-w-[300px]">
-                      {r.label}
+            {displayedRecurring.map((r) => {
+              // Get amounts for sparkline (sorted by date ascending)
+              const sparklineData = [...r.transactions]
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                .map(t => t.amount);
+
+              return (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <CategoryTag category={r.category} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate max-w-[180px] sm:max-w-[250px]">
+                        {r.label}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className={cn(
+                          'px-1.5 py-0.5 rounded',
+                          r.frequency === 'monthly' ? 'bg-primary/20 text-primary' :
+                          r.frequency === 'quarterly' ? 'bg-warning/20 text-warning' :
+                          'bg-accent/20 text-accent-foreground'
+                        )}>
+                          {FREQUENCY_LABELS[r.frequency]}
+                        </span>
+                        <span>•</span>
+                        <span>{r.occurrences} occ.</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Sparkline */}
+                  <div className="hidden sm:block mx-2">
+                    <Sparkline 
+                      data={sparklineData} 
+                      width={60} 
+                      height={20}
+                      strokeWidth={1.5}
+                    />
+                  </div>
+
+                  <div className="text-right shrink-0 ml-2">
+                    <p className="font-semibold text-foreground">
+                      {formatCurrency(r.averageAmount)}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className={cn(
-                        'px-1.5 py-0.5 rounded',
-                        r.frequency === 'monthly' ? 'bg-primary/20 text-primary' :
-                        r.frequency === 'quarterly' ? 'bg-warning/20 text-warning' :
-                        'bg-accent/20 text-accent-foreground'
-                      )}>
-                        {FREQUENCY_LABELS[r.frequency]}
-                      </span>
-                      <span>•</span>
-                      <span>{r.occurrences} occurrences</span>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>{formatDate(r.nextExpectedDate)}</span>
                     </div>
                   </div>
                 </div>
-                <div className="text-right shrink-0 ml-2">
-                  <p className="font-semibold text-foreground">
-                    {formatCurrency(r.averageAmount)}
-                  </p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    <span>Prochain: {formatDate(r.nextExpectedDate)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Show more button */}

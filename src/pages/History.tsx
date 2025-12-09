@@ -49,7 +49,10 @@ const History = () => {
   const itemsPerPage = 50;
 
   useEffect(() => {
-    setTransactions(localStore.getTransactions());
+    const loadData = () => setTransactions(localStore.getTransactions());
+    loadData();
+    window.addEventListener('transaction-added', loadData);
+    return () => window.removeEventListener('transaction-added', loadData);
   }, []);
 
   const availableYears = useMemo(() => {

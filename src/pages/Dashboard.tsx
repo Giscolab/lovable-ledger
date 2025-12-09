@@ -50,10 +50,20 @@ const Dashboard = () => {
   const [yearlyStats, setYearlyStats] = useState<YearlyStats | null>(null);
   const [currentMonthStats, setCurrentMonthStats] = useState<MonthlyStatsType | null>(null);
   const [previousMonthStats, setPreviousMonthStats] = useState<MonthlyStatsType | null>(null);
+  const [initialBalance, setInitialBalance] = useState<number>(0);
 
   useEffect(() => {
-    const saved = localStore.getTransactions();
-    setTransactions(saved);
+    const loadData = () => {
+      const saved = localStore.getTransactions();
+      setTransactions(saved);
+      setInitialBalance(localStore.getInitialBalance());
+    };
+
+    loadData();
+
+    // Listen for transactions added from FAB
+    window.addEventListener('transaction-added', loadData);
+    return () => window.removeEventListener('transaction-added', loadData);
   }, []);
 
   useEffect(() => {
@@ -305,6 +315,7 @@ const Dashboard = () => {
         transactions={transactions}
         month={currentMonthInfo.month}
         year={currentMonthInfo.year}
+        initialBalance={initialBalance}
       />
 
       {/* Charts Row - Mercury Glass Style */}
