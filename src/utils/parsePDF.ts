@@ -2,6 +2,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { Transaction } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
+import { computeTransactionId } from './transactionId';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -59,11 +60,12 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
   
   const transactions: Transaction[] = [];
   const rules = localStore.getRules();
+  const now = new Date().toISOString();
   
   // Try to parse each line for transactions
   for (const line of allLines) {
     const fullText = line.items.map(i => i.text).join(' ');
-    const transaction = parseTransactionLine(fullText, rules);
+    const transaction = parseTransactionLine(fullText, rules, now);
     
     if (transaction) {
       const isDuplicate = transactions.some(t => 
@@ -95,7 +97,7 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
   return transactions;
 };
 
-function parseTransactionLine(text: string, rules: any[]): Transaction | null {
+function parseTransactionLine(text: string, rules: any[], now: string): Transaction | null {
   // Enhanced date patterns for French bank statements
   const datePatterns = [
     /^(\d{2}[\/\.]\d{2}[\/\.]\d{4})/,
@@ -228,7 +230,7 @@ function parseTransactionLine(text: string, rules: any[]): Transaction | null {
   if (skipPatterns.some(p => p.test(label))) return null;
   
   const category = categorizeTransaction(label, rules);
-  const id = `${date.getTime()}-${label.slice(0, 15).replace(/\s/g, '')}-${amount}`;
+  const id = computeTransactionId(date, label, amount, 'pdf');
   
   return {
     id,
@@ -237,6 +239,9 @@ function parseTransactionLine(text: string, rules: any[]): Transaction | null {
     amount,
     category,
     isIncome,
+    source: 'pdf',
+    createdAt: now,
+    tags: [],
   };
 }
 
@@ -281,6 +286,7 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
   
   const transactions: Transaction[] = [];
   const rules = localStore.getRules();
+  const now = new Date().toISOString();
   const lines = fullText.split('\n');
   
   // Also try regex-based extraction on full text
@@ -306,7 +312,8 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
     if (cleanLabel.length < 3) continue;
     
     const category = categorizeTransaction(cleanLabel, rules);
-    const id = `${date.getTime()}-${cleanLabel.slice(0, 15).replace(/\s/g, '')}-${Math.abs(amount)}`;
+    const absAmount = Math.abs(amount);
+    const id = computeTransactionId(date, cleanLabel, absAmount, 'pdf');
     
     const isDuplicate = transactions.some(t => t.id === id);
     if (!isDuplicate) {
@@ -314,9 +321,12 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
         id,
         date,
         label: cleanLabel,
-        amount: Math.abs(amount),
+        amount: absAmount,
         category,
         isIncome: amount > 0,
+        source: 'pdf',
+        createdAt: now,
+        tags: [],
       });
     }
   }
@@ -324,7 +334,7 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
   // Fallback: line-by-line parsing
   if (transactions.length === 0) {
     for (const line of lines) {
-      const transaction = parseTransactionLine(line, rules);
+      const transaction = parseTransactionLine(line, rules, now);
       if (transaction) {
         const isDuplicate = transactions.some(t => t.id === transaction.id);
         if (!isDuplicate) {

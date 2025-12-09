@@ -13,6 +13,8 @@ export type CategoryType =
   | 'health'
   | 'other';
 
+export type TransactionSource = 'manual' | 'csv' | 'pdf';
+
 export interface Transaction {
   id: string;
   date: Date;
@@ -21,6 +23,9 @@ export interface Transaction {
   category: CategoryType;
   isIncome: boolean;
   notes?: string;
+  tags?: string[];
+  source: TransactionSource;
+  createdAt: string;
 }
 
 export interface CategoryRule {
@@ -90,4 +95,26 @@ export interface ExportFormat {
   type: 'csv' | 'json' | 'pdf';
   includeCategories: boolean;
   dateRange?: { start: Date; end: Date };
+}
+
+export interface DailyCashflow {
+  day: number;
+  date: Date;
+  income: number;
+  expenses: number;
+  balance: number;
+}
+
+export interface BackupData {
+  version: string;
+  exportedAt: string;
+  data: {
+    transactions: Transaction[];
+    rules: CategoryRule[];
+    budgets: any[];
+    goals: any[];
+    projection: ProjectionSettings;
+    lastMonth: string;
+    ignoredRecurring: string[];
+  };
 }

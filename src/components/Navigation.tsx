@@ -8,7 +8,8 @@ import {
   Menu,
   X,
   Wallet,
-  Target
+  Target,
+  RefreshCw
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,7 @@ const navItems = [
   { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { path: '/budgets', label: 'Budgets', icon: Wallet },
   { path: '/goals', label: 'Objectifs', icon: Target },
+  { path: '/recurring', label: 'Récurrents', icon: RefreshCw },
   { path: '/projection', label: 'Prévisionnel', icon: TrendingUp },
   { path: '/categories', label: 'Catégories', icon: Tags },
   { path: '/history', label: 'Historique', icon: History },

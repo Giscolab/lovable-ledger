@@ -1,4 +1,4 @@
-import { Transaction, CategoryType, MonthlyStats, YearlyStats, MultiYearProjection } from './types';
+import { Transaction, CategoryType, MonthlyStats, YearlyStats, MultiYearProjection, DailyCashflow } from './types';
 import { INCOMPRESSIBLE_CATEGORIES } from './categories';
 
 const MONTH_NAMES = [
@@ -211,4 +211,67 @@ export const getTrendData = (
   }
 
   return { labels, income, expenses, savings };
+};
+
+/**
+ * Compute daily cashflow for a given month
+ */
+export const computeDailyCashflow = (
+  transactions: Transaction[],
+  month: number,
+  year: number,
+  initialBalance: number = 0
+): DailyCashflow[] => {
+  // Filter transactions for the given month
+  const monthTransactions = transactions.filter(t => {
+    const d = new Date(t.date);
+    return d.getMonth() === month && d.getFullYear() === year;
+  });
+
+  // Get number of days in the month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  // Initialize daily data
+  const dailyData: DailyCashflow[] = [];
+  let runningBalance = initialBalance;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayTransactions = monthTransactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getDate() === day;
+    });
+
+    const dayIncome = dayTransactions
+      .filter(t => t.isIncome)
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const dayExpenses = dayTransactions
+      .filter(t => !t.isIncome)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    runningBalance += dayIncome - dayExpenses;
+
+    dailyData.push({
+      day,
+      date: new Date(year, month, day),
+      income: dayIncome,
+      expenses: dayExpenses,
+      balance: runningBalance,
+    });
+  }
+
+  return dailyData;
+};
+
+/**
+ * Get all unique tags from transactions
+ */
+export const getAllTags = (transactions: Transaction[]): string[] => {
+  const tagSet = new Set<string>();
+  transactions.forEach(t => {
+    if (t.tags) {
+      t.tags.forEach(tag => tagSet.add(tag));
+    }
+  });
+  return Array.from(tagSet).sort();
 };

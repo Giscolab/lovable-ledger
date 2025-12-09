@@ -1,5 +1,6 @@
 import { Transaction, CategoryType } from './types';
 import { CATEGORY_LABELS } from './categories';
+import { localStore } from './localStore';
 
 export interface RecurringTransaction {
   id: string;
@@ -12,6 +13,7 @@ export interface RecurringTransaction {
   lastDate: Date;
   nextExpectedDate: Date;
   isActive: boolean;
+  isIgnored: boolean;
   transactions: Transaction[];
 }
 
@@ -130,6 +132,7 @@ function calculateNextDate(lastDate: Date, frequency: 'monthly' | 'quarterly' | 
 export function detectRecurringTransactions(transactions: Transaction[]): RecurringTransaction[] {
   // Filter only expenses (recurring income is less common for personal finance)
   const expenses = transactions.filter(t => !t.isIncome && t.amount > 0);
+  const ignoredIds = localStore.getIgnoredRecurring();
   
   const groups = groupSimilarTransactions(expenses);
   const recurring: RecurringTransaction[] = [];
@@ -165,8 +168,10 @@ export function detectRecurringTransactions(transactions: Transaction[]): Recurr
                      frequency === 'quarterly' ? daysSinceLast < 120 :
                      daysSinceLast < 400;
     
+    const id = `recurring_${normalizedLabel.replace(/\s/g, '_')}`;
+    
     recurring.push({
-      id: `recurring_${normalizedLabel.replace(/\s/g, '_')}`,
+      id,
       label: sortedGroup[0].label,
       normalizedLabel,
       averageAmount: avgAmount,
@@ -176,6 +181,7 @@ export function detectRecurringTransactions(transactions: Transaction[]): Recurr
       lastDate,
       nextExpectedDate: nextExpected,
       isActive,
+      isIgnored: ignoredIds.includes(id),
       transactions: sortedGroup,
     });
   }
@@ -183,10 +189,10 @@ export function detectRecurringTransactions(transactions: Transaction[]): Recurr
   return recurring.sort((a, b) => b.averageAmount - a.averageAmount);
 }
 
-// Calculate total monthly recurring expenses
+// Calculate total monthly recurring expenses (excluding ignored)
 export function calculateMonthlyRecurring(recurring: RecurringTransaction[]): number {
   return recurring
-    .filter(r => r.isActive)
+    .filter(r => r.isActive && !r.isIgnored)
     .reduce((sum, r) => {
       switch (r.frequency) {
         case 'monthly': return sum + r.averageAmount;
@@ -203,8 +209,22 @@ export function getUpcomingRecurring(recurring: RecurringTransaction[], days: nu
   const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
   
   return recurring
-    .filter(r => r.isActive && r.nextExpectedDate >= now && r.nextExpectedDate <= future)
+    .filter(r => r.isActive && !r.isIgnored && r.nextExpectedDate >= now && r.nextExpectedDate <= future)
     .sort((a, b) => a.nextExpectedDate.getTime() - b.nextExpectedDate.getTime());
+}
+
+// Toggle ignored status
+export function toggleRecurringIgnored(id: string): void {
+  const ignoredIds = localStore.getIgnoredRecurring();
+  const index = ignoredIds.indexOf(id);
+  
+  if (index === -1) {
+    ignoredIds.push(id);
+  } else {
+    ignoredIds.splice(index, 1);
+  }
+  
+  localStore.setIgnoredRecurring(ignoredIds);
 }
 
 export const FREQUENCY_LABELS = {

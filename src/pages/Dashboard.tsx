@@ -35,6 +35,8 @@ import {
 import { CATEGORY_LABELS, INCOMPRESSIBLE_CATEGORIES } from '@/utils/categories';
 import { ComparisonChart } from '@/components/ComparisonChart';
 import { ReportGenerator } from '@/components/ReportGenerator';
+import { DailyCashflowChart } from '@/components/DailyCashflowChart';
+import { BackupRestore } from '@/components/BackupRestore';
 import { cn } from '@/lib/utils';
 
 ChartJS.register(
@@ -76,6 +78,12 @@ const Dashboard = () => {
 
   const availableYears = useMemo(() => getAvailableYears(transactions), [transactions]);
   const trendData = useMemo(() => getTrendData(transactions, 12), [transactions]);
+  
+  // Get current month info for cashflow chart
+  const currentMonthInfo = useMemo(() => {
+    const months = getAvailableMonths(transactions);
+    return months[0] || { month: new Date().getMonth(), year: new Date().getFullYear() };
+  }, [transactions]);
 
   if (transactions.length === 0) {
     return (
@@ -292,6 +300,13 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Daily Cashflow Chart */}
+      <DailyCashflowChart
+        transactions={transactions}
+        month={currentMonthInfo.month}
+        year={currentMonthInfo.year}
+      />
+
       {/* Charts Row - Mercury Glass Style */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Trend Chart */}
@@ -396,6 +411,9 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Backup & Restore */}
+      <BackupRestore />
     </div>
   );
 };
