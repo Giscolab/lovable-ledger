@@ -1,0 +1,135 @@
+import { useCallback, useState } from 'react';
+import { Upload, FileText, Download, Trash2 } from 'lucide-react';
+import { parseCSV, generateSampleCSV } from '@/utils/parseCSV';
+import { Transaction } from '@/utils/types';
+import { cn } from '@/lib/utils';
+
+interface CSVUploaderProps {
+  onUpload: (transactions: Transaction[]) => void;
+  onClear: () => void;
+  hasData: boolean;
+}
+
+export const CSVUploader = ({ onUpload, onClear, hasData }: CSVUploaderProps) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = useCallback(async (file: File) => {
+    if (!file.name.endsWith('.csv')) {
+      setError('Veuillez sélectionner un fichier CSV');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const transactions = await parseCSV(file);
+      if (transactions.length === 0) {
+        setError('Aucune transaction valide trouvée dans le fichier');
+      } else {
+        onUpload(transactions);
+      }
+    } catch (err) {
+      setError('Erreur lors de la lecture du fichier');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onUpload]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }, [handleFile]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const downloadSample = () => {
+    const csv = generateSampleCSV();
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'exemple_releve.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        className={cn(
+          'relative flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all duration-300',
+          isDragging
+            ? 'border-primary bg-primary/5 scale-[1.02]'
+            : 'border-border bg-card hover:border-primary/50 hover:bg-primary/5',
+          isLoading && 'pointer-events-none opacity-60'
+        )}
+      >
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleInputChange}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          disabled={isLoading}
+        />
+        
+        <div className={cn(
+          'flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 transition-transform duration-300',
+          isDragging && 'scale-110'
+        )}>
+          {isLoading ? (
+            <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+          ) : (
+            <Upload className="h-8 w-8 text-primary" />
+          )}
+        </div>
+        
+        <p className="mt-4 text-center font-semibold text-foreground">
+          {isLoading ? 'Analyse en cours...' : 'Glissez votre relevé CSV ici'}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          ou cliquez pour sélectionner un fichier
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Format attendu : Date; Libellé; Montant
+        </p>
+      </div>
+
+      {error && (
+        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive animate-scale-in">
+          {error}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={downloadSample}
+          className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-3 text-sm font-medium text-secondary-foreground transition-all hover:bg-secondary/80 hover:shadow-card"
+        >
+          <Download className="h-4 w-4" />
+          Télécharger un exemple
+        </button>
+
+        {hasData && (
+          <button
+            onClick={onClear}
+            className="flex items-center gap-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive transition-all hover:bg-destructive/20"
+          >
+            <Trash2 className="h-4 w-4" />
+            Effacer les données
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
