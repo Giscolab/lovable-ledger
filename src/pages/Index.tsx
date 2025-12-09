@@ -6,9 +6,13 @@ import { DonutChart } from '@/components/DonutChart';
 import { MonthlyStats } from '@/components/MonthlyStats';
 import { IncompressibleCard } from '@/components/IncompressibleCard';
 import { MonthSelector } from '@/components/MonthSelector';
+import { BudgetAlertCard } from '@/components/BudgetAlertCard';
 import { Transaction, CategoryType, MonthlyStats as MonthlyStatsType } from '@/utils/types';
 import { localStore } from '@/utils/localStore';
 import { computeMonthlyStats, getAvailableMonths } from '@/utils/computeStats';
+import { checkBudgetAlerts } from '@/utils/budgets';
+import { categorizeTransaction } from '@/utils/categorize';
+import { DEFAULT_CATEGORY_RULES } from '@/utils/categories';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, BarChart3 } from 'lucide-react';
 
@@ -79,6 +83,39 @@ const Index = () => {
     });
   }, []);
 
+  const handleTransactionUpdate = useCallback((transaction: Transaction) => {
+    setTransactions(prev => {
+      const updated = prev.map(t => t.id === transaction.id ? transaction : t);
+      localStore.setTransactions(updated);
+      return updated;
+    });
+    toast({ title: 'Transaction modifiée' });
+  }, []);
+
+  const handleTransactionDelete = useCallback((id: string) => {
+    setTransactions(prev => {
+      const updated = prev.filter(t => t.id !== id);
+      localStore.setTransactions(updated);
+      return updated;
+    });
+    toast({ title: 'Transaction supprimée' });
+  }, []);
+
+  const handleTransactionAdd = useCallback((transaction: Omit<Transaction, 'id'>) => {
+    const rules = localStore.getRules();
+    const newTransaction: Transaction = {
+      ...transaction,
+      id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      category: transaction.category || categorizeTransaction(transaction.label, rules),
+    };
+    setTransactions(prev => {
+      const updated = [...prev, newTransaction];
+      localStore.setTransactions(updated);
+      return updated;
+    });
+    toast({ title: 'Transaction ajoutée' });
+  }, []);
+
   const availableMonths = getAvailableMonths(transactions);
   const filteredTransactions = selectedMonth
     ? transactions.filter(t => {
@@ -86,6 +123,9 @@ const Index = () => {
         return d.getMonth() === selectedMonth.month && d.getFullYear() === selectedMonth.year;
       })
     : [];
+
+  const budgets = localStore.getBudgets();
+  const alerts = stats ? checkBudgetAlerts(budgets, stats.byCategory) : [];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -114,6 +154,9 @@ const Index = () => {
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
+
+          {/* Budget Alerts */}
+          {alerts.length > 0 && <BudgetAlertCard alerts={alerts} />}
 
           {/* Month Selector */}
           <div className="flex items-center justify-between">
@@ -153,6 +196,9 @@ const Index = () => {
             <TransactionTable
               transactions={filteredTransactions}
               onCategoryChange={handleCategoryChange}
+              onTransactionUpdate={handleTransactionUpdate}
+              onTransactionDelete={handleTransactionDelete}
+              onTransactionAdd={handleTransactionAdd}
             />
           </section>
         </>
