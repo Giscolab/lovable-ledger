@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, X, Sparkles } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CATEGORY_LABELS } from '@/utils/categories';
+import { categorizeTransaction } from '@/utils/categorize';
+import { localStore } from '@/utils/localStore';
 import { cn } from '@/lib/utils';
 
 interface TransactionAddFormProps {
@@ -20,8 +22,28 @@ export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) 
   });
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [autoCategory, setAutoCategory] = useState<CategoryType | null>(null);
 
   const categories = Object.keys(CATEGORY_LABELS) as CategoryType[];
+  const rules = localStore.getRules();
+
+  // Auto-categorization when label changes
+  useEffect(() => {
+    if (form.label.length >= 3) {
+      const suggested = categorizeTransaction(form.label, rules);
+      if (suggested !== 'other') {
+        setAutoCategory(suggested);
+        // Auto-apply if category is still 'other'
+        if (form.category === 'other') {
+          setForm(prev => ({ ...prev, category: suggested }));
+        }
+      } else {
+        setAutoCategory(null);
+      }
+    } else {
+      setAutoCategory(null);
+    }
+  }, [form.label]);
 
   const handleAddTag = () => {
     const trimmed = tagInput.trim().toLowerCase();
@@ -63,7 +85,7 @@ export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md glass rounded-2xl p-6 animate-scale-in">
+      <div className="relative w-full max-w-md glass rounded-2xl p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-foreground">Ajouter une transaction</h2>
           <button
@@ -87,6 +109,12 @@ export const TransactionAddForm = ({ onAdd, onClose }: TransactionAddFormProps) 
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               required
             />
+            {autoCategory && autoCategory !== 'other' && (
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-primary">
+                <Sparkles className="h-3 w-3" />
+                <span>Catégorie suggérée : {CATEGORY_LABELS[autoCategory]}</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
