@@ -23,6 +23,7 @@ import Budgets from "./pages/Budgets";
 import Goals from "./pages/Goals";
 import Recurring from "./pages/Recurring";
 import Settings from "./pages/Settings";
+import Accounts from "./pages/Accounts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,13 +37,18 @@ const AppContent = () => {
   useEffect(() => {
     const theme = localStore.getTheme();
     document.documentElement.classList.toggle('dark', theme === 'dark');
+    // Initialize accounts on app start
+    localStore.ensureAccountsInitialized();
   }, []);
 
   const handleFabAdd = useCallback((transaction: Omit<Transaction, 'id'>) => {
     const rules = localStore.getRules();
+    const selectedAccountId = localStore.getSelectedAccountId() || localStore.getAccounts()[0]?.id || '';
+    
     const newTransaction: Transaction = {
       ...transaction,
       id: generateManualTransactionId(transaction.date, transaction.label, transaction.amount),
+      accountId: transaction.accountId || selectedAccountId,
       category: transaction.category || categorizeTransaction(transaction.label, rules),
       source: transaction.source || 'manual',
       createdAt: transaction.createdAt || new Date().toISOString(),
@@ -67,6 +73,7 @@ const AppContent = () => {
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/accounts" element={<Accounts />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/projection" element={<Projection />} />
             <Route path="/categories" element={<Categories />} />

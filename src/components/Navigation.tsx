@@ -10,14 +10,17 @@ import {
   Wallet,
   Target,
   RefreshCw,
-  Settings
+  Settings,
+  CreditCard
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
+import { AccountSelector } from './AccountSelector';
 
 const navItems = [
   { path: '/', label: 'Import', icon: Upload },
+  { path: '/accounts', label: 'Comptes', icon: CreditCard },
   { path: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { path: '/budgets', label: 'Budgets', icon: Wallet },
   { path: '/goals', label: 'Objectifs', icon: Target },
@@ -44,6 +47,11 @@ export const Navigation = () => {
             <h1 className="font-bold text-foreground tracking-tight">Finance Pro</h1>
             <p className="text-xs text-muted-foreground">Gestion financière</p>
           </div>
+        </div>
+
+        {/* Account Selector */}
+        <div className="mb-4">
+          <AccountSelector />
         </div>
 
         <div className="flex-1 space-y-1">

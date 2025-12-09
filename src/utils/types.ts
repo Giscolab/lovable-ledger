@@ -15,8 +15,22 @@ export type CategoryType =
 
 export type TransactionSource = 'manual' | 'csv' | 'pdf';
 
+export type AccountType = 'checking' | 'savings' | 'cash' | 'investment' | 'custom';
+
+export interface Account {
+  id: string;
+  name: string;
+  iban?: string;
+  number?: string;
+  bankName?: string;
+  type: AccountType;
+  createdAt: string;
+  notes?: string;
+}
+
 export interface Transaction {
   id: string;
+  accountId: string;
   date: Date;
   label: string;
   amount: number;
@@ -109,6 +123,7 @@ export interface BackupData {
   version: string;
   exportedAt: string;
   data: {
+    accounts?: Account[];
     transactions: Transaction[];
     rules: CategoryRule[];
     budgets: any[];
@@ -116,5 +131,7 @@ export interface BackupData {
     projection: ProjectionSettings;
     lastMonth: string;
     ignoredRecurring: string[];
+    initialBalance?: number;
+    selectedAccountId?: string;
   };
 }
