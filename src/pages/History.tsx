@@ -9,9 +9,12 @@ import {
   FileDown,
   ChevronDown,
   ChevronUp,
-  Tag
+  Tag,
+  FileText,
+  Upload,
+  Pencil
 } from 'lucide-react';
-import { Transaction, CategoryType } from '@/utils/types';
+import { Transaction, CategoryType, TransactionSource } from '@/utils/types';
 import { localStore } from '@/utils/localStore';
 import { CATEGORY_LABELS, CATEGORY_ICONS } from '@/utils/categories';
 import { formatCurrencyFull, getAllTags } from '@/utils/computeStats';
@@ -20,12 +23,25 @@ import { cn } from '@/lib/utils';
 type SortField = 'date' | 'amount' | 'label' | 'category';
 type SortDirection = 'asc' | 'desc';
 
+const SOURCE_LABELS: Record<TransactionSource, string> = {
+  manual: 'Manuel',
+  csv: 'CSV',
+  pdf: 'PDF',
+};
+
+const SOURCE_ICONS: Record<TransactionSource, React.ReactNode> = {
+  manual: <Pencil className="h-3 w-3" />,
+  csv: <FileText className="h-3 w-3" />,
+  pdf: <Upload className="h-3 w-3" />,
+};
+
 const History = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'all'>('all');
   const [selectedTag, setSelectedTag] = useState<string | 'all'>('all');
+  const [selectedSource, setSelectedSource] = useState<TransactionSource | 'all'>('all');
   const [showIncomeOnly, setShowIncomeOnly] = useState<boolean | null>(null);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -57,7 +73,9 @@ const History = () => {
           t.isIncome === showIncomeOnly;
         const matchesTag = selectedTag === 'all' ||
           (t.tags && t.tags.includes(selectedTag));
-        return matchesSearch && matchesYear && matchesCategory && matchesType && matchesTag;
+        const matchesSource = selectedSource === 'all' ||
+          t.source === selectedSource;
+        return matchesSearch && matchesYear && matchesCategory && matchesType && matchesTag && matchesSource;
       })
       .sort((a, b) => {
         let comparison = 0;
@@ -77,7 +95,7 @@ const History = () => {
         }
         return sortDirection === 'desc' ? -comparison : comparison;
       });
-  }, [transactions, searchTerm, selectedYear, selectedCategory, showIncomeOnly, selectedTag, sortField, sortDirection]);
+  }, [transactions, searchTerm, selectedYear, selectedCategory, showIncomeOnly, selectedTag, selectedSource, sortField, sortDirection]);
 
   const paginatedTransactions = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -254,6 +272,18 @@ const History = () => {
             </select>
           )}
 
+          {/* Source Filter */}
+          <select
+            value={selectedSource}
+            onChange={(e) => { setSelectedSource(e.target.value as TransactionSource | 'all'); setCurrentPage(1); }}
+            className="rounded-xl border border-border bg-background px-4 py-3 focus:border-primary focus:outline-none"
+          >
+            <option value="all">Toutes sources</option>
+            <option value="manual">📝 Manuel</option>
+            <option value="csv">📄 CSV</option>
+            <option value="pdf">📑 PDF</option>
+          </select>
+
           {/* Type Filter */}
           <div className="flex rounded-xl border border-border overflow-hidden">
             <button
@@ -343,7 +373,15 @@ const History = () => {
               {paginatedTransactions.map((t) => (
                 <tr key={t.id} className="hover:bg-muted/50 transition-colors">
                   <td className="px-4 py-3 text-sm text-foreground">
-                    {new Date(t.date).toLocaleDateString('fr-FR')}
+                    <div className="flex flex-col">
+                      <span>{new Date(t.date).toLocaleDateString('fr-FR')}</span>
+                      {t.source && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                          {SOURCE_ICONS[t.source]}
+                          {SOURCE_LABELS[t.source]}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">
                     <div className="max-w-xs">
