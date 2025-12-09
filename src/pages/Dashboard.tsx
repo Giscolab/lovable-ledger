@@ -22,16 +22,19 @@ import {
   ArrowDownRight,
   Calendar
 } from 'lucide-react';
-import { Transaction, MonthlyStats, YearlyStats } from '@/utils/types';
+import { Transaction, MonthlyStats as MonthlyStatsType, YearlyStats } from '@/utils/types';
 import { localStore } from '@/utils/localStore';
 import { 
   computeMonthlyStats, 
   computeYearlyStats, 
   getAvailableYears,
+  getAvailableMonths,
   getTrendData,
   formatCurrency 
 } from '@/utils/computeStats';
 import { CATEGORY_LABELS, INCOMPRESSIBLE_CATEGORIES } from '@/utils/categories';
+import { ComparisonChart } from '@/components/ComparisonChart';
+import { ReportGenerator } from '@/components/ReportGenerator';
 import { cn } from '@/lib/utils';
 
 ChartJS.register(
@@ -43,6 +46,8 @@ const Dashboard = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [yearlyStats, setYearlyStats] = useState<YearlyStats | null>(null);
+  const [currentMonthStats, setCurrentMonthStats] = useState<MonthlyStatsType | null>(null);
+  const [previousMonthStats, setPreviousMonthStats] = useState<MonthlyStatsType | null>(null);
 
   useEffect(() => {
     const saved = localStore.getTransactions();
@@ -52,6 +57,20 @@ const Dashboard = () => {
   useEffect(() => {
     if (transactions.length > 0) {
       setYearlyStats(computeYearlyStats(transactions, selectedYear));
+      
+      // Compute comparison stats
+      const months = getAvailableMonths(transactions);
+      if (months.length > 0) {
+        const current = months[0];
+        setCurrentMonthStats(computeMonthlyStats(transactions, current.month, current.year));
+        
+        if (months.length > 1) {
+          const previous = months[1];
+          setPreviousMonthStats(computeMonthlyStats(transactions, previous.month, previous.year));
+        } else {
+          setPreviousMonthStats(null);
+        }
+      }
     }
   }, [transactions, selectedYear]);
 
@@ -320,6 +339,26 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Comparison & Reports Row */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Month Comparison */}
+        {currentMonthStats && (
+          <ComparisonChart 
+            currentStats={currentMonthStats} 
+            previousStats={previousMonthStats} 
+          />
+        )}
+
+        {/* Report Generator */}
+        <ReportGenerator
+          monthlyStats={currentMonthStats}
+          yearlyStats={yearlyStats}
+          availableYears={availableYears}
+          onYearChange={setSelectedYear}
+          selectedYear={selectedYear}
+        />
+      </div>
 
       {/* Top Categories */}
       {yearlyStats && (
