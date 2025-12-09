@@ -27,19 +27,32 @@ const Index = () => {
   const [selectedMonth, setSelectedMonth] = useState<{ month: number; year: number; label: string } | null>(null);
   const [stats, setStats] = useState<MonthlyStatsType | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const { saveState, undo, redo, canUndo, canRedo } = useUndoRedo();
 
+  // Load transactions and filter by account
   useEffect(() => {
-    const loadTransactions = () => {
-      const saved = localStore.getTransactions();
-      setTransactions(saved);
+    const loadData = () => {
+      const accountId = localStore.getSelectedAccountId();
+      setSelectedAccountId(accountId);
+      
+      const allTransactions = localStore.getTransactions();
+      // Filter by selected account
+      const filtered = accountId 
+        ? allTransactions.filter(t => t.accountId === accountId)
+        : allTransactions;
+      setTransactions(filtered);
     };
 
-    loadTransactions();
+    loadData();
 
     // Listen for transactions added from FAB or other sources
-    const handleTransactionAdded = () => loadTransactions();
+    const handleTransactionAdded = () => loadData();
     window.addEventListener('transaction-added', handleTransactionAdded);
+    
+    // Listen for account changes
+    const handleAccountChanged = () => loadData();
+    window.addEventListener('account-changed', handleAccountChanged);
 
     // Listen for new transaction shortcut
     const handleNewTransaction = () => setShowAddModal(true);
@@ -47,6 +60,7 @@ const Index = () => {
 
     return () => {
       window.removeEventListener('transaction-added', handleTransactionAdded);
+      window.removeEventListener('account-changed', handleAccountChanged);
       window.removeEventListener('shortcut-new-transaction', handleNewTransaction);
     };
   }, []);
@@ -78,7 +92,14 @@ const Index = () => {
   const handleUpload = useCallback((newTransactions: Transaction[]) => {
     saveState('Avant import');
     const result = localStore.addTransactions(newTransactions);
-    setTransactions(result.all);
+    
+    // Reload filtered transactions
+    const accountId = localStore.getSelectedAccountId();
+    const filtered = accountId 
+      ? result.all.filter(t => t.accountId === accountId)
+      : result.all;
+    setTransactions(filtered);
+    
     saveState(`Import ${result.added} transactions`);
     toast({
       title: 'Import réussi',
@@ -100,33 +121,50 @@ const Index = () => {
   }, [saveState]);
 
   const handleCategoryChange = useCallback((id: string, category: CategoryType) => {
-    setTransactions(prev => {
-      const updated = prev.map(t => 
-        t.id === id ? { ...t, category } : t
-      );
-      localStore.setTransactions(updated);
-      return updated;
-    });
+    const allTransactions = localStore.getTransactions();
+    const updated = allTransactions.map(t => 
+      t.id === id ? { ...t, category } : t
+    );
+    localStore.setTransactions(updated);
+    
+    // Reload filtered
+    const accountId = localStore.getSelectedAccountId();
+    const filtered = accountId 
+      ? updated.filter(t => t.accountId === accountId)
+      : updated;
+    setTransactions(filtered);
   }, []);
 
   const handleTransactionUpdate = useCallback((transaction: Transaction) => {
     saveState('Avant modification');
-    setTransactions(prev => {
-      const updated = prev.map(t => t.id === transaction.id ? transaction : t);
-      localStore.setTransactions(updated);
-      return updated;
-    });
+    const allTransactions = localStore.getTransactions();
+    const updated = allTransactions.map(t => t.id === transaction.id ? transaction : t);
+    localStore.setTransactions(updated);
+    
+    // Reload filtered
+    const accountId = localStore.getSelectedAccountId();
+    const filtered = accountId 
+      ? updated.filter(t => t.accountId === accountId)
+      : updated;
+    setTransactions(filtered);
+    
     saveState('Transaction modifiée');
     toast({ title: 'Transaction modifiée' });
   }, [saveState]);
 
   const handleTransactionDelete = useCallback((id: string) => {
     saveState('Avant suppression');
-    setTransactions(prev => {
-      const updated = prev.filter(t => t.id !== id);
-      localStore.setTransactions(updated);
-      return updated;
-    });
+    const allTransactions = localStore.getTransactions();
+    const updated = allTransactions.filter(t => t.id !== id);
+    localStore.setTransactions(updated);
+    
+    // Reload filtered
+    const accountId = localStore.getSelectedAccountId();
+    const filtered = accountId 
+      ? updated.filter(t => t.accountId === accountId)
+      : updated;
+    setTransactions(filtered);
+    
     saveState('Transaction supprimée');
     toast({ title: 'Transaction supprimée' });
   }, [saveState]);
@@ -142,11 +180,18 @@ const Index = () => {
       createdAt: transaction.createdAt || new Date().toISOString(),
       tags: transaction.tags || [],
     };
-    setTransactions(prev => {
-      const updated = [...prev, newTransaction];
-      localStore.setTransactions(updated);
-      return updated;
-    });
+    
+    const allTransactions = localStore.getTransactions();
+    const updated = [...allTransactions, newTransaction];
+    localStore.setTransactions(updated);
+    
+    // Reload filtered
+    const accountId = localStore.getSelectedAccountId();
+    const filtered = accountId 
+      ? updated.filter(t => t.accountId === accountId)
+      : updated;
+    setTransactions(filtered);
+    
     saveState('Transaction ajoutée');
     toast({ title: 'Transaction ajoutée' });
   }, [saveState]);
@@ -323,6 +368,7 @@ const Index = () => {
             setShowAddModal(false);
           }}
           onClose={() => setShowAddModal(false)}
+          defaultAccountId={selectedAccountId || undefined}
         />
       )}
     </div>

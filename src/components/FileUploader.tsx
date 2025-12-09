@@ -1,9 +1,11 @@
 import { useCallback, useState, useEffect } from 'react';
-import { Upload, FileText, Download, Trash2, FileSpreadsheet } from 'lucide-react';
+import { Upload, FileText, Download, Trash2, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { parseCSV, generateSampleCSV } from '@/utils/parseCSV';
 import { parsePDF } from '@/utils/parsePDF';
-import { Transaction } from '@/utils/types';
+import { Transaction, Account } from '@/utils/types';
+import { localStore } from '@/utils/localStore';
 import { ImportPreviewModal } from './ImportPreviewModal';
+import { AccountSelector } from './AccountSelector';
 import { cn } from '@/lib/utils';
 
 interface FileUploaderProps {
@@ -19,18 +21,40 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
   const [fileType, setFileType] = useState<'csv' | 'pdf' | null>(null);
   const [previewTransactions, setPreviewTransactions] = useState<Transaction[] | null>(null);
   const [previewSource, setPreviewSource] = useState<'csv' | 'pdf'>('csv');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = localStore.getSelectedAccountId();
+    setSelectedAccountId(id);
+    
+    // Listen for account changes
+    const handleAccountChange = () => {
+      setSelectedAccountId(localStore.getSelectedAccountId());
+    };
+    window.addEventListener('account-changed', handleAccountChange);
+    return () => window.removeEventListener('account-changed', handleAccountChange);
+  }, []);
 
   // Listen for import shortcut
   useEffect(() => {
     const handleImportShortcut = () => {
+      if (!selectedAccountId) {
+        setError('Veuillez sélectionner un compte avant d\'importer');
+        return;
+      }
       const input = document.querySelector('input[type="file"][accept=".csv,.pdf"]') as HTMLInputElement;
       if (input) input.click();
     };
     window.addEventListener('shortcut-import', handleImportShortcut);
     return () => window.removeEventListener('shortcut-import', handleImportShortcut);
-  }, []);
+  }, [selectedAccountId]);
 
   const handleFile = useCallback(async (file: File) => {
+    if (!selectedAccountId) {
+      setError('Veuillez sélectionner un compte avant d\'importer');
+      return;
+    }
+
     const isPDF = file.name.toLowerCase().endsWith('.pdf');
     const isCSV = file.name.toLowerCase().endsWith('.csv');
     
@@ -52,6 +76,12 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
         transactions = await parseCSV(file);
       }
       
+      // Assign accountId to all parsed transactions
+      transactions = transactions.map(t => ({
+        ...t,
+        accountId: selectedAccountId,
+      }));
+      
       if (transactions.length === 0) {
         setError('Aucune transaction valide trouvée dans le fichier');
       } else {
@@ -66,7 +96,7 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
       setIsLoading(false);
       setFileType(null);
     }
-  }, []);
+  }, [selectedAccountId]);
 
   const handlePreviewConfirm = (transactions: Transaction[]) => {
     onUpload(transactions);
@@ -80,9 +110,13 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    if (!selectedAccountId) {
+      setError('Veuillez sélectionner un compte avant d\'importer');
+      return;
+    }
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
-  }, [handleFile]);
+  }, [handleFile, selectedAccountId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,14 +134,45 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
     URL.revokeObjectURL(url);
   };
 
+  const accounts = localStore.getAccounts();
+  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+  const hasNoAccount = accounts.length === 0;
+
   return (
     <div className="space-y-4">
+      {/* Account Selector for Import */}
+      <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-foreground">Compte de destination :</span>
+          <AccountSelector compact onChange={setSelectedAccountId} />
+        </div>
+        {selectedAccount && (
+          <span className="text-xs text-muted-foreground">
+            Les transactions seront importées dans "{selectedAccount.name}"
+          </span>
+        )}
+      </div>
+
+      {/* No Account Warning */}
+      {hasNoAccount && (
+        <div className="rounded-xl bg-warning/10 border border-warning/30 p-4 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-warning flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Aucun compte créé</p>
+            <p className="text-xs text-muted-foreground">
+              Créez un compte pour pouvoir importer vos transactions.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={cn(
           'relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all duration-300',
+          !selectedAccountId && 'opacity-50 cursor-not-allowed',
           isDragging
             ? 'border-primary bg-primary/5 scale-[1.02]'
             : 'border-border bg-card hover:border-primary/50 hover:bg-primary/5',
@@ -119,7 +184,7 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
           accept=".csv,.pdf"
           onChange={handleInputChange}
           className="absolute inset-0 cursor-pointer opacity-0"
-          disabled={isLoading}
+          disabled={isLoading || !selectedAccountId}
         />
         
         <div className={cn(
@@ -136,10 +201,12 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
         <p className="mt-4 text-center font-semibold text-foreground">
           {isLoading 
             ? `Analyse ${fileType === 'pdf' ? 'PDF' : 'CSV'} en cours...` 
-            : 'Glissez votre relevé ici'}
+            : !selectedAccountId
+              ? 'Sélectionnez un compte pour importer'
+              : 'Glissez votre relevé ici'}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          ou cliquez pour sélectionner un fichier
+          {selectedAccountId && 'ou cliquez pour sélectionner un fichier'}
         </p>
         
         <div className="mt-4 flex flex-wrap justify-center gap-3">
@@ -186,10 +253,11 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
       </div>
 
       {/* Import Preview Modal */}
-      {previewTransactions && (
+      {previewTransactions && selectedAccountId && (
         <ImportPreviewModal
           transactions={previewTransactions}
           source={previewSource}
+          accountId={selectedAccountId}
           onConfirm={handlePreviewConfirm}
           onCancel={handlePreviewCancel}
         />

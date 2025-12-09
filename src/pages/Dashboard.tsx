@@ -54,8 +54,15 @@ const Dashboard = () => {
 
   useEffect(() => {
     const loadData = () => {
-      const saved = localStore.getTransactions();
-      setTransactions(saved);
+      const accountId = localStore.getSelectedAccountId();
+      const allTransactions = localStore.getTransactions();
+      
+      // Filter by selected account
+      const filtered = accountId 
+        ? allTransactions.filter(t => t.accountId === accountId)
+        : allTransactions;
+      
+      setTransactions(filtered);
       setInitialBalance(localStore.getInitialBalance());
     };
 
@@ -63,7 +70,12 @@ const Dashboard = () => {
 
     // Listen for transactions added from FAB
     window.addEventListener('transaction-added', loadData);
-    return () => window.removeEventListener('transaction-added', loadData);
+    window.addEventListener('account-changed', loadData);
+    
+    return () => {
+      window.removeEventListener('transaction-added', loadData);
+      window.removeEventListener('account-changed', loadData);
+    };
   }, []);
 
   useEffect(() => {
