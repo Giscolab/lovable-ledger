@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUploader } from '@/components/FileUploader';
 import { TransactionTable } from '@/components/TransactionTable';
+import { TransactionAddForm } from '@/components/TransactionAddForm';
 import { DonutChart } from '@/components/DonutChart';
 import { MonthlyStats } from '@/components/MonthlyStats';
 import { IncompressibleCard } from '@/components/IncompressibleCard';
@@ -17,13 +18,14 @@ import { detectRecurringTransactions } from '@/utils/recurring';
 import { categorizeTransaction } from '@/utils/categorize';
 import { generateManualTransactionId } from '@/utils/transactionId';
 import { toast } from '@/hooks/use-toast';
-import { ArrowRight, BarChart3 } from 'lucide-react';
+import { ArrowRight, BarChart3, Plus } from 'lucide-react';
 
 const Index = () => {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<{ month: number; year: number; label: string } | null>(null);
   const [stats, setStats] = useState<MonthlyStatsType | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     const saved = localStore.getTransactions();
@@ -206,9 +208,18 @@ const Index = () => {
 
           {/* Transactions Table */}
           <section>
-            <h2 className="mb-4 text-xl font-semibold text-foreground">
-              Opérations ({filteredTransactions.length})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-foreground">
+                Opérations ({filteredTransactions.length})
+              </h2>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                Ajouter une transaction
+              </button>
+            </div>
             <TransactionTable
               transactions={filteredTransactions}
               onCategoryChange={handleCategoryChange}
@@ -232,6 +243,17 @@ const Index = () => {
             Importez votre relevé bancaire (CSV ou PDF) pour visualiser vos dépenses et planifier votre épargne.
           </p>
         </div>
+      )}
+
+      {/* Modal ajout manuel */}
+      {showAddModal && (
+        <TransactionAddForm
+          onAdd={(tx) => {
+            handleTransactionAdd(tx);
+            setShowAddModal(false);
+          }}
+          onClose={() => setShowAddModal(false)}
+        />
       )}
     </div>
   );
