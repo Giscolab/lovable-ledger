@@ -202,36 +202,36 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Mercury Glass Style */}
       {yearlyStats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-2xl bg-card p-5 shadow-card">
+          <div className="rounded-2xl glass p-5 shadow-card hover:shadow-card-hover transition-all duration-300">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-xl bg-success/10 p-2">
                 <TrendingUp className="h-5 w-5 text-success" />
               </div>
               <span className="text-sm text-muted-foreground">Revenus {selectedYear}</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(yearlyStats.totalIncome)}</p>
+            <p className="text-2xl font-bold text-foreground tracking-tight">{formatCurrency(yearlyStats.totalIncome)}</p>
             <p className="text-xs text-muted-foreground mt-1">
               ~{formatCurrency(yearlyStats.averageMonthlyIncome)}/mois
             </p>
           </div>
 
-          <div className="rounded-2xl bg-card p-5 shadow-card">
+          <div className="rounded-2xl glass p-5 shadow-card hover:shadow-card-hover transition-all duration-300">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-xl bg-destructive/10 p-2">
                 <TrendingDown className="h-5 w-5 text-destructive" />
               </div>
               <span className="text-sm text-muted-foreground">Dépenses {selectedYear}</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(yearlyStats.totalExpenses)}</p>
+            <p className="text-2xl font-bold text-foreground tracking-tight">{formatCurrency(yearlyStats.totalExpenses)}</p>
             <p className="text-xs text-muted-foreground mt-1">
               ~{formatCurrency(yearlyStats.averageMonthlyExpenses)}/mois
             </p>
           </div>
 
-          <div className="rounded-2xl bg-card p-5 shadow-card">
+          <div className="rounded-2xl glass p-5 shadow-card hover:shadow-card-hover transition-all duration-300">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-xl bg-primary/10 p-2">
                 <PiggyBank className="h-5 w-5 text-primary" />
@@ -239,7 +239,7 @@ const Dashboard = () => {
               <span className="text-sm text-muted-foreground">Épargne {selectedYear}</span>
             </div>
             <p className={cn(
-              'text-2xl font-bold',
+              'text-2xl font-bold tracking-tight',
               yearlyStats.totalSavings >= 0 ? 'text-success' : 'text-destructive'
             )}>
               {formatCurrency(yearlyStats.totalSavings)}
@@ -256,14 +256,14 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-card p-5 shadow-card">
+          <div className="rounded-2xl glass p-5 shadow-card hover:shadow-card-hover transition-all duration-300">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-xl bg-warning/10 p-2">
                 <Wallet className="h-5 w-5 text-warning" />
               </div>
               <span className="text-sm text-muted-foreground">Incompressibles</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-2xl font-bold text-foreground tracking-tight">
               {formatCurrency(INCOMPRESSIBLE_CATEGORIES.reduce((sum, cat) => 
                 sum + (yearlyStats.byCategory[cat] || 0), 0
               ))}
@@ -273,19 +273,19 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Charts Row */}
+      {/* Charts Row - Mercury Glass Style */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Trend Chart */}
-        <div className="rounded-2xl bg-card p-6 shadow-card">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Évolution sur 12 mois</h3>
+        <div className="rounded-2xl glass p-6 shadow-card">
+          <h3 className="text-lg font-semibold text-foreground tracking-tight mb-4">Évolution sur 12 mois</h3>
           <div className="h-[300px]">
             <Line data={lineChartData} options={lineChartOptions} />
           </div>
         </div>
 
         {/* Category Pie Chart */}
-        <div className="rounded-2xl bg-card p-6 shadow-card">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Répartition des dépenses</h3>
+        <div className="rounded-2xl glass p-6 shadow-card">
+          <h3 className="text-lg font-semibold text-foreground tracking-tight mb-4">Répartition des dépenses</h3>
           <div className="h-[300px] flex items-center justify-center">
             <Doughnut 
               data={pieChartData} 
@@ -295,10 +295,16 @@ const Dashboard = () => {
                 plugins: {
                   legend: { position: 'right' as const, labels: { boxWidth: 12 } },
                   tooltip: {
+                    backgroundColor: 'hsl(0, 0%, 8%)',
+                    titleColor: 'hsl(0, 0%, 95%)',
+                    bodyColor: 'hsl(0, 0%, 95%)',
+                    borderColor: 'hsl(0, 0%, 18%)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
                     callbacks: { label: (ctx: any) => ` ${formatCurrency(ctx.raw)}` },
                   },
                 },
-                cutout: '60%',
+                cutout: '65%',
               }} 
             />
           </div>
@@ -307,8 +313,8 @@ const Dashboard = () => {
 
       {/* Stacked Bar Chart */}
       {stackedData && (
-        <div className="rounded-2xl bg-card p-6 shadow-card">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Répartition mensuelle {selectedYear}</h3>
+        <div className="rounded-2xl glass p-6 shadow-card">
+          <h3 className="text-lg font-semibold text-foreground tracking-tight mb-4">Répartition mensuelle {selectedYear}</h3>
           <div className="h-[350px]">
             <Bar data={stackedData} options={barChartOptions} />
           </div>
@@ -317,8 +323,8 @@ const Dashboard = () => {
 
       {/* Top Categories */}
       {yearlyStats && (
-        <div className="rounded-2xl bg-card p-6 shadow-card">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Top catégories de dépenses</h3>
+        <div className="rounded-2xl glass p-6 shadow-card">
+          <h3 className="text-lg font-semibold text-foreground tracking-tight mb-4">Top catégories de dépenses</h3>
           <div className="space-y-3">
             {categoryData.slice(0, 6).map(([cat, amount], i) => {
               const percent = (amount / yearlyStats.totalExpenses) * 100;
