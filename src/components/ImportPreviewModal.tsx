@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, Check, AlertTriangle, FileSpreadsheet, FileText, ArrowRight, Tag } from 'lucide-react';
+import { X, Check, AlertTriangle, FileSpreadsheet, FileText, ArrowRight, CreditCard } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CATEGORY_LABELS } from '@/utils/categories';
 import { formatCurrency } from '@/utils/computeStats';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 interface ImportPreviewModalProps {
   transactions: Transaction[];
   source: 'csv' | 'pdf';
+  accountId: string;
   onConfirm: (transactions: Transaction[]) => void;
   onCancel: () => void;
 }
@@ -16,10 +17,14 @@ interface ImportPreviewModalProps {
 export const ImportPreviewModal = ({
   transactions,
   source,
+  accountId,
   onConfirm,
   onCancel,
 }: ImportPreviewModalProps) => {
   const [editedTransactions, setEditedTransactions] = useState<Transaction[]>(transactions);
+
+  // Get account info
+  const account = useMemo(() => localStore.getAccountById(accountId), [accountId]);
 
   // Detect duplicates
   const existingIds = useMemo(() => {
@@ -93,6 +98,19 @@ export const ImportPreviewModal = ({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {/* Destination Account */}
+        {account && (
+          <div className="mx-4 mt-4 rounded-xl bg-primary/10 border border-primary/30 p-3">
+            <div className="flex items-center gap-2 text-primary">
+              <CreditCard className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                Destination : {account.name}
+                {account.bankName && ` (${account.bankName})`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 border-b border-border bg-muted/30">

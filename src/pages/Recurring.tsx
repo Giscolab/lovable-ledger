@@ -26,8 +26,15 @@ const Recurring = () => {
   const [showIgnored, setShowIgnored] = useState(false);
 
   useEffect(() => {
-    const saved = localStore.getTransactions();
-    setTransactions(saved);
+    const loadData = () => {
+      const accountId = localStore.getSelectedAccountId();
+      const allTx = localStore.getTransactions();
+      const filtered = accountId ? allTx.filter(t => t.accountId === accountId) : allTx;
+      setTransactions(filtered);
+    };
+    loadData();
+    window.addEventListener('account-changed', loadData);
+    return () => window.removeEventListener('account-changed', loadData);
   }, []);
 
   useEffect(() => {

@@ -159,6 +159,26 @@ export const TransactionAddForm = ({ onAdd, onClose, defaultAccountId }: Transac
             </div>
           </div>
 
+          {/* Account Selector */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              <CreditCard className="inline h-4 w-4 mr-1" />
+              Compte
+            </label>
+            <select
+              value={form.accountId}
+              onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              required
+            >
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} {acc.bankName ? `(${acc.bankName})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
               Catégorie

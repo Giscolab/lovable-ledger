@@ -49,10 +49,20 @@ const History = () => {
   const itemsPerPage = 50;
 
   useEffect(() => {
-    const loadData = () => setTransactions(localStore.getTransactions());
+    const loadData = () => {
+      const accountId = localStore.getSelectedAccountId();
+      const allTx = localStore.getTransactions();
+      // Filter by account (or show all if none selected)
+      const filtered = accountId ? allTx.filter(t => t.accountId === accountId) : allTx;
+      setTransactions(filtered);
+    };
     loadData();
     window.addEventListener('transaction-added', loadData);
-    return () => window.removeEventListener('transaction-added', loadData);
+    window.addEventListener('account-changed', loadData);
+    return () => {
+      window.removeEventListener('transaction-added', loadData);
+      window.removeEventListener('account-changed', loadData);
+    };
   }, []);
 
   const availableYears = useMemo(() => {
