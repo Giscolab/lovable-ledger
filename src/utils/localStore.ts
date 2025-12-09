@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   BUDGETS: 'finance_budgets',
   GOALS: 'finance_goals',
   IGNORED_RECURRING: 'finance_ignored_recurring',
+  INITIAL_BALANCE: 'finance_initial_balance',
 };
 
 export interface AddTransactionsResult {
@@ -179,6 +180,21 @@ export const localStore = {
 
   setIgnoredRecurring: (ids: string[]): void => {
     localStorage.setItem(STORAGE_KEYS.IGNORED_RECURRING, JSON.stringify(ids));
+  },
+
+  // Initial Balance
+  getInitialBalance: (): number => {
+    const data = localStorage.getItem(STORAGE_KEYS.INITIAL_BALANCE);
+    if (!data) return 0;
+    try {
+      return parseFloat(data) || 0;
+    } catch {
+      return 0;
+    }
+  },
+
+  setInitialBalance: (balance: number): void => {
+    localStorage.setItem(STORAGE_KEYS.INITIAL_BALANCE, balance.toString());
   },
 
   // Backup & Restore

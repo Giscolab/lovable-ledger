@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, ChevronDown, Edit2, Trash2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ChevronDown, Edit2, Trash2, PenLine, FileText, FileSpreadsheet } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CategoryTag } from './CategoryTag';
 import { CATEGORY_LABELS } from '@/utils/categories';
@@ -7,6 +7,18 @@ import { formatCurrency } from '@/utils/computeStats';
 import { TransactionEditModal } from './TransactionEditModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { cn } from '@/lib/utils';
+
+const SOURCE_ICONS = {
+  manual: PenLine,
+  csv: FileSpreadsheet,
+  pdf: FileText,
+};
+
+const SOURCE_COLORS = {
+  manual: 'text-primary',
+  csv: 'text-success',
+  pdf: 'text-warning',
+};
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -109,8 +121,18 @@ export const TransactionTable = ({
                   className="group transition-colors hover:bg-muted/30"
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-muted-foreground">
-                    {formatDate(transaction.date)}
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const source = transaction.source || 'csv';
+                        const Icon = SOURCE_ICONS[source as keyof typeof SOURCE_ICONS] || FileSpreadsheet;
+                        const colorClass = SOURCE_COLORS[source as keyof typeof SOURCE_COLORS] || 'text-muted-foreground';
+                        return <Icon className={cn('h-3.5 w-3.5', colorClass)} />;
+                      })()}
+                      <span className="text-sm text-muted-foreground">
+                        {formatDate(transaction.date)}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-4">
                     <p className="text-sm font-medium text-foreground line-clamp-1">

@@ -2,10 +2,16 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { useEffect, useCallback } from "react";
 import { Navigation } from "@/components/Navigation";
+import { FloatingActionButton } from "@/components/FloatingActionButton";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { localStore } from "@/utils/localStore";
+import { categorizeTransaction } from "@/utils/categorize";
+import { generateManualTransactionId } from "@/utils/transactionId";
+import { Transaction } from "@/utils/types";
+import { toast } from "@/hooks/use-toast";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Projection from "./pages/Projection";
@@ -20,13 +26,36 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
+  const navigate = useNavigate();
+
   useEffect(() => {
     const theme = localStore.getTheme();
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, []);
 
+  const handleFabAdd = useCallback((transaction: Omit<Transaction, 'id'>) => {
+    const rules = localStore.getRules();
+    const newTransaction: Transaction = {
+      ...transaction,
+      id: generateManualTransactionId(transaction.date, transaction.label, transaction.amount),
+      category: transaction.category || categorizeTransaction(transaction.label, rules),
+      source: transaction.source || 'manual',
+      createdAt: transaction.createdAt || new Date().toISOString(),
+      tags: transaction.tags || [],
+    };
+    
+    const existing = localStore.getTransactions();
+    localStore.setTransactions([...existing, newTransaction]);
+    
+    toast({ title: 'Transaction ajoutée' });
+    
+    // Trigger a reload of the current page's data
+    window.dispatchEvent(new CustomEvent('transaction-added'));
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
+      <OfflineIndicator />
       <Navigation />
       <main className="lg:ml-64 pt-16 lg:pt-0 pb-20 lg:pb-8">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
@@ -44,6 +73,7 @@ const AppContent = () => {
           </Routes>
         </div>
       </main>
+      <FloatingActionButton onAdd={handleFabAdd} />
     </div>
   );
 };
