@@ -78,6 +78,7 @@ export const localStore = {
         monthlyIncome: 3000,
         variableBudget: 300,
         savingsGoal: 10000,
+        targetYear: 2042,
       };
       localStore.setProjectionSettings(defaults);
       return defaults;
@@ -85,7 +86,7 @@ export const localStore = {
     try {
       return JSON.parse(data);
     } catch {
-      return { monthlyIncome: 3000, variableBudget: 300, savingsGoal: 10000 };
+      return { monthlyIncome: 3000, variableBudget: 300, savingsGoal: 10000, targetYear: 2042 };
     }
   },
 
