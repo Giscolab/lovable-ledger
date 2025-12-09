@@ -231,18 +231,43 @@ const Index = () => {
         </>
       )}
 
-      {transactions.length === 0 && (
-        <div className="mt-12 text-center">
-          <div className="mx-auto h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-4">
-            <span className="text-4xl">📊</span>
+      {/* Section Opérations toujours visible - même sans import */}
+      {!stats && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-foreground">
+              Opérations ({transactions.length})
+            </h2>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all font-medium"
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter une transaction
+            </button>
           </div>
-          <h3 className="text-xl font-semibold text-foreground">
-            Commencez votre analyse
-          </h3>
-          <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-            Importez votre relevé bancaire (CSV ou PDF) pour visualiser vos dépenses et planifier votre épargne.
-          </p>
-        </div>
+          <TransactionTable
+            transactions={transactions}
+            onCategoryChange={handleCategoryChange}
+            onTransactionUpdate={handleTransactionUpdate}
+            onTransactionDelete={handleTransactionDelete}
+            onTransactionAdd={handleTransactionAdd}
+          />
+          
+          {transactions.length === 0 && (
+            <div className="mt-8 text-center">
+              <div className="mx-auto h-24 w-24 rounded-full bg-muted flex items-center justify-center mb-4">
+                <span className="text-4xl">📊</span>
+              </div>
+              <h3 className="text-xl font-semibold text-foreground">
+                Commencez votre analyse
+              </h3>
+              <p className="mt-2 text-muted-foreground max-w-md mx-auto">
+                Importez un relevé bancaire ou ajoutez vos transactions manuellement pour commencer.
+              </p>
+            </div>
+          )}
+        </section>
       )}
 
       {/* Modal ajout manuel */}
