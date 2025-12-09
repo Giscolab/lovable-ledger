@@ -9,7 +9,8 @@ import {
   X,
   Wallet,
   Target,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ const navItems = [
   { path: '/projection', label: 'Prévisionnel', icon: TrendingUp },
   { path: '/categories', label: 'Catégories', icon: Tags },
   { path: '/history', label: 'Historique', icon: History },
+  { path: '/settings', label: 'Paramètres', icon: Settings },
 ];
 
 export const Navigation = () => {

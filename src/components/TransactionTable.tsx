@@ -6,6 +6,7 @@ import { CATEGORY_LABELS } from '@/utils/categories';
 import { formatCurrency } from '@/utils/computeStats';
 import { TransactionEditModal } from './TransactionEditModal';
 import { TransactionAddForm } from './TransactionAddForm';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { cn } from '@/lib/utils';
 
 interface TransactionTableProps {
@@ -26,6 +27,7 @@ export const TransactionTable = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
 
   const sortedTransactions = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -51,10 +53,15 @@ export const TransactionTable = ({
     setEditingTransaction(null);
   };
 
-  const handleDelete = (id: string) => {
-    if (onTransactionDelete) {
-      onTransactionDelete(id);
+  const handleDeleteClick = (transaction: Transaction) => {
+    setDeleteConfirm({ id: transaction.id, label: transaction.label });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteConfirm && onTransactionDelete) {
+      onTransactionDelete(deleteConfirm.id);
     }
+    setDeleteConfirm(null);
     setEditingTransaction(null);
   };
 
@@ -208,7 +215,7 @@ export const TransactionTable = ({
                         )}
                         {onTransactionDelete && (
                           <button
-                            onClick={() => handleDelete(transaction.id)}
+                            onClick={() => handleDeleteClick(transaction)}
                             className="p-2 rounded-lg hover:bg-destructive/10 transition-colors"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -228,7 +235,7 @@ export const TransactionTable = ({
         <TransactionEditModal
           transaction={editingTransaction}
           onSave={handleSave}
-          onDelete={handleDelete}
+          onDelete={(id) => setDeleteConfirm({ id, label: editingTransaction.label })}
           onClose={() => setEditingTransaction(null)}
         />
       )}
@@ -237,6 +244,16 @@ export const TransactionTable = ({
         <TransactionAddForm
           onAdd={handleAdd}
           onClose={() => setShowAddForm(false)}
+        />
+      )}
+
+      {deleteConfirm && (
+        <ConfirmDeleteModal
+          title="Supprimer cette transaction ?"
+          itemLabel={deleteConfirm.label}
+          message="Cette action est irréversible."
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteConfirm(null)}
         />
       )}
     </>
