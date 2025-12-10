@@ -4,12 +4,14 @@ import { localStore } from '@/utils/localStore';
 import { BackupData } from '@/utils/types';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { validateBackupData } from '@/utils/validation';
 
 export const BackupRestore = () => {
   const [importing, setImporting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingBackup, setPendingBackup] = useState<BackupData | null>(null);
   const [mergeMode, setMergeMode] = useState<'merge' | 'replace'>('merge');
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -33,23 +35,37 @@ export const BackupRestore = () => {
     if (!file) return;
 
     setImporting(true);
+    setValidationWarnings([]);
     const reader = new FileReader();
     
     reader.onload = (event) => {
       try {
-        const backup = JSON.parse(event.target?.result as string) as BackupData;
+        const rawData = JSON.parse(event.target?.result as string);
         
-        // Validate backup structure
-        if (!backup.version || !backup.data) {
-          throw new Error('Format de sauvegarde invalide');
+        // Validate backup structure with Zod schema
+        const validationResult = validateBackupData(rawData);
+        
+        if (validationResult.success === false) {
+          // Show first few errors as warnings but still allow import
+          const errorList = validationResult.errors;
+          const warnings: string[] = errorList.slice(0, 5);
+          if (errorList.length > 5) {
+            warnings.push(`... et ${errorList.length - 5} autres problèmes`);
+          }
+          setValidationWarnings(warnings);
+          
+          // Still allow import if basic structure exists (version, data)
+          if (!rawData.version || !rawData.data) {
+            throw new Error('Format de sauvegarde invalide: version ou data manquant');
+          }
         }
 
-        setPendingBackup(backup);
+        setPendingBackup(rawData as BackupData);
         setShowConfirm(true);
       } catch (error) {
         toast({
           title: 'Erreur de lecture',
-          description: 'Le fichier sélectionné n\'est pas une sauvegarde valide',
+          description: error instanceof Error ? error.message : 'Le fichier sélectionné n\'est pas une sauvegarde valide',
           variant: 'destructive',
         });
       } finally {
@@ -174,7 +190,26 @@ export const BackupRestore = () => {
                 <p className="text-muted-foreground">
                   <strong className="text-foreground">Transactions:</strong> {pendingBackup.data.transactions?.length || 0}
                 </p>
+                {pendingBackup.data.accounts && (
+                  <p className="text-muted-foreground">
+                    <strong className="text-foreground">Comptes:</strong> {pendingBackup.data.accounts.length}
+                  </p>
+                )}
               </div>
+
+              {validationWarnings.length > 0 && (
+                <div className="p-3 rounded-xl bg-warning/10 border border-warning/20">
+                  <p className="text-sm font-medium text-warning mb-1">Avertissements de validation :</p>
+                  <ul className="text-xs text-muted-foreground space-y-0.5">
+                    {validationWarnings.map((warning, i) => (
+                      <li key={i}>• {warning}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    L'import est toujours possible mais certaines données peuvent être incorrectes.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <p className="text-sm font-medium text-foreground mb-2">Mode d'import :</p>
