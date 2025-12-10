@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, CreditCard } from 'lucide-react';
 import { Account, AccountType } from '@/utils/types';
 import { cn } from '@/lib/utils';
+import { accountFormSchema, VALIDATION_LIMITS } from '@/utils/validation';
 
 const ACCOUNT_TYPES: { value: AccountType; label: string; icon: string }[] = [
   { value: 'checking', label: 'Compte courant', icon: '🏦' },
@@ -27,7 +28,7 @@ export const AccountFormModal = ({ account, onSave, onClose }: AccountFormModalP
     notes: '',
   });
 
-  const [errors, setErrors] = useState<{ name?: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     if (account) {
@@ -43,14 +44,23 @@ export const AccountFormModal = ({ account, onSave, onClose }: AccountFormModalP
   }, [account]);
 
   const validate = () => {
-    const newErrors: { name?: string } = {};
+    const result = accountFormSchema.safeParse(form);
     
-    if (!form.name.trim()) {
-      newErrors.name = 'Le nom est obligatoire';
+    if (result.success) {
+      setErrors({});
+      return true;
     }
     
+    const newErrors: { [key: string]: string } = {};
+    result.error.issues.forEach(issue => {
+      const field = issue.path[0] as string;
+      if (!newErrors[field]) {
+        newErrors[field] = issue.message;
+      }
+    });
+    
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return false;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -95,11 +105,12 @@ export const AccountFormModal = ({ account, onSave, onClose }: AccountFormModalP
             <label className="block text-sm font-medium text-foreground mb-1">
               Nom du compte *
             </label>
-            <input
+          <input
               type="text"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => setForm({ ...form, name: e.target.value.slice(0, VALIDATION_LIMITS.NAME_MAX) })}
               placeholder="Ex: Compte principal"
+              maxLength={VALIDATION_LIMITS.NAME_MAX}
               className={cn(
                 'w-full rounded-xl border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20',
                 errors.name ? 'border-destructive focus:border-destructive' : 'border-border focus:border-primary'
@@ -143,8 +154,9 @@ export const AccountFormModal = ({ account, onSave, onClose }: AccountFormModalP
             <input
               type="text"
               value={form.bankName}
-              onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+              onChange={(e) => setForm({ ...form, bankName: e.target.value.slice(0, VALIDATION_LIMITS.BANK_NAME_MAX) })}
               placeholder="Ex: Caisse d'Épargne"
+              maxLength={VALIDATION_LIMITS.BANK_NAME_MAX}
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
@@ -157,10 +169,17 @@ export const AccountFormModal = ({ account, onSave, onClose }: AccountFormModalP
             <input
               type="text"
               value={form.iban}
-              onChange={(e) => setForm({ ...form, iban: e.target.value.toUpperCase() })}
+              onChange={(e) => setForm({ ...form, iban: e.target.value.toUpperCase().slice(0, 34) })}
               placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground font-mono text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              maxLength={34}
+              className={cn(
+                'w-full rounded-xl border bg-background px-4 py-3 text-foreground font-mono text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20',
+                errors.iban ? 'border-destructive focus:border-destructive' : 'border-border focus:border-primary'
+              )}
             />
+            {errors.iban && (
+              <p className="text-xs text-destructive mt-1">{errors.iban}</p>
+            )}
           </div>
 
           {/* Account Number */}
@@ -171,8 +190,9 @@ export const AccountFormModal = ({ account, onSave, onClose }: AccountFormModalP
             <input
               type="text"
               value={form.number}
-              onChange={(e) => setForm({ ...form, number: e.target.value })}
+              onChange={(e) => setForm({ ...form, number: e.target.value.slice(0, VALIDATION_LIMITS.ACCOUNT_NUMBER_MAX) })}
               placeholder="XXXXXXXXXX"
+              maxLength={VALIDATION_LIMITS.ACCOUNT_NUMBER_MAX}
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground font-mono text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
@@ -184,8 +204,9 @@ export const AccountFormModal = ({ account, onSave, onClose }: AccountFormModalP
             </label>
             <textarea
               value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              onChange={(e) => setForm({ ...form, notes: e.target.value.slice(0, VALIDATION_LIMITS.NOTES_MAX) })}
               rows={2}
+              maxLength={VALIDATION_LIMITS.NOTES_MAX}
               placeholder="Informations supplémentaires..."
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
             />

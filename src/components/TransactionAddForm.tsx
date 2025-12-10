@@ -5,6 +5,7 @@ import { CATEGORY_LABELS } from '@/utils/categories';
 import { categorizeTransaction } from '@/utils/categorize';
 import { localStore } from '@/utils/localStore';
 import { cn } from '@/lib/utils';
+import { transactionFormSchema, VALIDATION_LIMITS } from '@/utils/validation';
 
 interface TransactionAddFormProps {
   onAdd: (transaction: Omit<Transaction, 'id'>) => void;
@@ -26,6 +27,7 @@ export const TransactionAddForm = ({ onAdd, onClose, defaultAccountId }: Transac
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [autoCategory, setAutoCategory] = useState<CategoryType | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const categories = Object.keys(CATEGORY_LABELS) as CategoryType[];
   const rules = localStore.getRules();
@@ -79,16 +81,41 @@ export const TransactionAddForm = ({ onAdd, onClose, defaultAccountId }: Transac
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(form.amount);
-    if (!form.label || isNaN(amount) || amount <= 0 || !form.accountId) return;
+    
+    // Validate with Zod schema
+    const result = transactionFormSchema.safeParse({
+      label: form.label,
+      amount: isNaN(amount) ? 0 : amount,
+      category: form.category,
+      date: form.date,
+      isIncome: form.isIncome,
+      notes: form.notes,
+      accountId: form.accountId,
+      tags,
+    });
+    
+    if (!result.success) {
+      const newErrors: { [key: string]: string } = {};
+      result.error.issues.forEach(issue => {
+        const field = issue.path[0] as string;
+        if (!newErrors[field]) {
+          newErrors[field] = issue.message;
+        }
+      });
+      setErrors(newErrors);
+      return;
+    }
+    
+    setErrors({});
 
     onAdd({
       accountId: form.accountId,
-      label: form.label,
+      label: form.label.trim(),
       amount,
       category: form.category,
       date: new Date(form.date),
       isIncome: form.isIncome,
-      notes: form.notes || undefined,
+      notes: form.notes.trim() || undefined,
       source: 'manual',
       createdAt: new Date().toISOString(),
       tags,
@@ -117,12 +144,19 @@ export const TransactionAddForm = ({ onAdd, onClose, defaultAccountId }: Transac
             <input
               type="text"
               value={form.label}
-              onChange={(e) => setForm({ ...form, label: e.target.value })}
+              onChange={(e) => setForm({ ...form, label: e.target.value.slice(0, VALIDATION_LIMITS.LABEL_MAX) })}
               placeholder="Ex: Courses Carrefour"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              maxLength={VALIDATION_LIMITS.LABEL_MAX}
+              className={cn(
+                'w-full rounded-xl border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20',
+                errors.label ? 'border-destructive focus:border-destructive' : 'border-border focus:border-primary'
+              )}
               required
             />
-            {autoCategory && autoCategory !== 'other' && (
+            {errors.label && (
+              <p className="text-xs text-destructive mt-1">{errors.label}</p>
+            )}
+            {autoCategory && autoCategory !== 'other' && !errors.label && (
               <div className="flex items-center gap-1.5 mt-1.5 text-xs text-primary">
                 <Sparkles className="h-3 w-3" />
                 <span>Catégorie suggérée : {CATEGORY_LABELS[autoCategory]}</span>
@@ -141,9 +175,16 @@ export const TransactionAddForm = ({ onAdd, onClose, defaultAccountId }: Transac
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 placeholder="0.00"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                max={VALIDATION_LIMITS.AMOUNT_MAX}
+                className={cn(
+                  'w-full rounded-xl border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20',
+                  errors.amount ? 'border-destructive focus:border-destructive' : 'border-border focus:border-primary'
+                )}
                 required
               />
+              {errors.amount && (
+                <p className="text-xs text-destructive mt-1">{errors.amount}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
@@ -276,8 +317,9 @@ export const TransactionAddForm = ({ onAdd, onClose, defaultAccountId }: Transac
             </label>
             <textarea
               value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              onChange={(e) => setForm({ ...form, notes: e.target.value.slice(0, VALIDATION_LIMITS.NOTES_MAX) })}
               rows={2}
+              maxLength={VALIDATION_LIMITS.NOTES_MAX}
               placeholder="Détails supplémentaires..."
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
             />
