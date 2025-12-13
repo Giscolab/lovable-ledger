@@ -58,8 +58,24 @@ const Budgets = () => {
     setHasChanges(true);
   };
 
+  // ✅ Nouvelle liste des catégories variables cohérente avec DEFAULT_BUDGETS enrichi
   const variableCategories: CategoryType[] = [
-    'groceries', 'food', 'shopping', 'smoking', 'entertainment', 'health', 'other'
+    'groceries',
+    'food',
+    'shopping',
+    'entertainment',
+    'transport',
+    'health',
+    'smoking',
+    'household',
+    'streaming',
+    'subscriptions',
+    'clothing',
+    'beauty',
+    'gifts',
+    'hobbies',
+    'travel',
+    'unexpected',
   ];
 
   return (
