@@ -3,7 +3,7 @@ import { Transaction, CategoryType } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
 import { computeTransactionId } from './transactionId';
-import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from './normalization';
+import { buildTransactionFingerprint, normalizeLabel, parseEuroToCents } from './normalization';
 
 export const parseCSV = (file: File): Promise<Transaction[]> => {
   return new Promise((resolve, reject) => {
@@ -64,16 +64,14 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
 
             if (isNaN(date.getTime())) return;
 
-            // Parse amount (handle French format)
-            amountStr = amountStr
-              .replace(/[€\s]/g, '')
-              .replace(/\s/g, '')
-              .replace(',', '.');
-            
-            const amount = parseFloat(amountStr);
-            if (isNaN(amount)) return;
+            let amountMinor: number;
+            try {
+              amountMinor = parseEuroToCents(amountStr);
+            } catch (error) {
+              console.warn(`[CSV Parser] Ignoring invalid amount "${amountStr}":`, error);
+              return;
+            }
 
-            const amountMinor = toMinorUnits(amount);
             if (amountMinor === 0) return;
 
             const isIncome = amountMinor > 0;
