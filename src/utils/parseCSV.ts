@@ -3,6 +3,7 @@ import { Transaction, CategoryType } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
 import { computeTransactionId } from './transactionId';
+import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from './normalization';
 
 export const parseCSV = (file: File): Promise<Transaction[]> => {
   return new Promise((resolve, reject) => {
@@ -72,24 +73,42 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
             const amount = parseFloat(amountStr);
             if (isNaN(amount)) return;
 
-            const isIncome = amount > 0;
+            const amountMinor = toMinorUnits(amount);
+            if (amountMinor === 0) return;
+
+            const isIncome = amountMinor > 0;
             const category = categorizeTransaction(label, rules);
-            const absAmount = Math.abs(amount);
+            const normalizedLabel = normalizeLabel(label);
+            const absAmount = Math.abs(amountMinor) / 100;
 
             // Generate deterministic ID for deduplication
             const id = computeTransactionId(date, label, absAmount, 'csv');
+            const fingerprint = buildTransactionFingerprint({
+              accountId: '',
+              date,
+              amountMinor,
+              normalizedLabel,
+              source: 'csv',
+            });
 
             transactions.push({
               id,
               accountId: '', // Will be set during import
               date,
               label,
+              normalizedLabel,
               amount: absAmount,
+              amountMinor,
               category,
               isIncome,
               source: 'csv',
+              dedupeHash: fingerprint,
+              rawFingerprint: fingerprint,
+              rawSource: Array.isArray(row) ? row.join(';') : String(row),
               createdAt: now,
               tags: [],
+              status: 'posted',
+              currency: 'EUR',
             });
           });
 

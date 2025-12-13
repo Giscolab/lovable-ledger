@@ -3,6 +3,7 @@ import { Transaction } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
 import { computeTransactionId } from './transactionId';
+import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from './normalization';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -231,16 +232,32 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
   
   const category = categorizeTransaction(label, rules);
   const id = computeTransactionId(date, label, amount, 'pdf');
-  
+  const normalizedLabel = normalizeLabel(label);
+  const amountMinor = toMinorUnits(isIncome ? amount : -amount);
+  const fingerprint = buildTransactionFingerprint({
+    accountId: '',
+    date,
+    amountMinor,
+    normalizedLabel,
+    source: 'pdf',
+  });
+
   return {
     id,
     accountId: '', // Will be set during import
     date,
     label,
+    normalizedLabel,
     amount,
+    amountMinor,
     category,
     isIncome,
     source: 'pdf',
+    dedupeHash: fingerprint,
+    rawFingerprint: fingerprint,
+    rawSource: text,
+    status: 'posted',
+    currency: 'EUR',
     createdAt: now,
     tags: [],
   };
@@ -314,19 +331,35 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
     
     const category = categorizeTransaction(cleanLabel, rules);
     const absAmount = Math.abs(amount);
+    const normalizedLabel = normalizeLabel(cleanLabel);
+    const amountMinor = toMinorUnits(amount);
     const id = computeTransactionId(date, cleanLabel, absAmount, 'pdf');
-    
+
     const isDuplicate = transactions.some(t => t.id === id);
     if (!isDuplicate) {
+      const fingerprint = buildTransactionFingerprint({
+        accountId: '',
+        date,
+        amountMinor,
+        normalizedLabel,
+        source: 'pdf',
+      });
       transactions.push({
         id,
         accountId: '', // Will be set during import
         date,
         label: cleanLabel,
+        normalizedLabel,
         amount: absAmount,
+        amountMinor,
         category,
         isIncome: amount > 0,
         source: 'pdf',
+        dedupeHash: fingerprint,
+        rawFingerprint: fingerprint,
+        rawSource: match[0],
+        status: 'posted',
+        currency: 'EUR',
         createdAt: now,
         tags: [],
       });
