@@ -129,6 +129,19 @@ const budgetAlertSchema = z.object({
   enabled: z.boolean(),
 });
 
+const statementSchema = z.object({
+  id: z.string(),
+  accountId: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  openingBalanceMinor: z.number(),
+  closingBalanceMinor: z.number(),
+  sourceFileId: z.string().optional(),
+  importedAt: z.string(),
+  transactionIds: z.array(z.string()),
+  currency: z.string().optional(),
+});
+
 const projectionYearSchema = z.object({
   year: z.number(),
   monthlyIncome: z.number(),
@@ -155,6 +168,7 @@ export const backupDataSchema = z.object({
     accounts: z.array(accountSchema).optional(),
     initialBalance: z.number().optional(),
     selectedAccountId: z.string().optional(),
+    statements: z.array(statementSchema).optional(),
   }),
 });
 

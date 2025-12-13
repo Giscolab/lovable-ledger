@@ -5,6 +5,7 @@ import { CATEGORY_LABELS } from '@/utils/categories';
 import { formatCurrency } from '@/utils/computeStats';
 import { localStore } from '@/utils/localStore';
 import { cn } from '@/lib/utils';
+import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from '@/utils/normalization';
 
 interface ImportPreviewModalProps {
   transactions: Transaction[];
@@ -22,6 +23,32 @@ export const ImportPreviewModal = ({
   onCancel,
 }: ImportPreviewModalProps) => {
   const [editedTransactions, setEditedTransactions] = useState<Transaction[]>(transactions);
+  const [statementDetails, setStatementDetails] = useState({
+    openingBalance: '',
+    closingBalance: '',
+    startDate: '',
+    endDate: '',
+  });
+
+  const deriveMinorAmount = (t: Transaction): number => {
+    if (typeof t.amountMinor === 'number') return t.amountMinor;
+    const base = toMinorUnits(Math.abs(t.amount));
+    return t.isIncome ? base : -base;
+  };
+
+  const computeFingerprint = (t: Transaction) => {
+    const normalized = t.normalizedLabel || normalizeLabel(t.label);
+    const amountMinor = deriveMinorAmount(t);
+    const fingerprint = t.dedupeHash || buildTransactionFingerprint({
+      accountId: t.accountId,
+      date: t.date,
+      amountMinor,
+      normalizedLabel: normalized,
+      source: t.source,
+    });
+
+    return { fingerprint, amountMinor, normalizedLabel: normalized };
+  };
 
   // Get account info
   const account = useMemo(() => localStore.getAccountById(accountId), [accountId]);
@@ -32,23 +59,40 @@ export const ImportPreviewModal = ({
     return new Set(existing.map(t => t.id));
   }, []);
 
+  const existingFingerprints = useMemo(() => {
+    const existing = localStore.getTransactions();
+    return new Set(existing.map(t => t.dedupeHash || computeFingerprint(t).fingerprint));
+  }, []);
+
   const { newTransactions, duplicates } = useMemo(() => {
     const newTx: Transaction[] = [];
     const dupTx: Transaction[] = [];
-    
+
     editedTransactions.forEach(t => {
-      if (existingIds.has(t.id)) {
-        dupTx.push(t);
+      const { fingerprint, amountMinor, normalizedLabel } = computeFingerprint(t);
+      const candidate = { ...t, dedupeHash: fingerprint, amountMinor, normalizedLabel };
+
+      if (existingIds.has(t.id) || existingFingerprints.has(fingerprint)) {
+        dupTx.push(candidate);
       } else {
-        newTx.push(t);
+        newTx.push(candidate);
       }
     });
-    
-    return { newTransactions: newTx, duplicates: dupTx };
-  }, [editedTransactions, existingIds]);
 
-  const totalIncome = newTransactions.filter(t => t.isIncome).reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = newTransactions.filter(t => !t.isIncome).reduce((sum, t) => sum + t.amount, 0);
+    return { newTransactions: newTx, duplicates: dupTx };
+  }, [editedTransactions, existingFingerprints, existingIds]);
+
+  const totals = useMemo(() => {
+    const incomeMinor = newTransactions
+      .filter(t => t.isIncome)
+      .reduce((sum, t) => sum + Math.abs(deriveMinorAmount(t)), 0);
+    const expenseMinor = newTransactions
+      .filter(t => !t.isIncome)
+      .reduce((sum, t) => sum + Math.abs(deriveMinorAmount(t)), 0);
+    const netMinor = newTransactions.reduce((sum, t) => sum + deriveMinorAmount(t), 0);
+
+    return { incomeMinor, expenseMinor, netMinor };
+  }, [newTransactions]);
 
   const handleCategoryChange = (id: string, category: CategoryType) => {
     setEditedTransactions(prev =>
@@ -56,9 +100,47 @@ export const ImportPreviewModal = ({
     );
   };
 
+  const parseBalanceInput = (value: string): number | null => {
+    if (!value.trim()) return null;
+    const parsed = parseFloat(value.replace(',', '.'));
+    if (Number.isNaN(parsed)) return null;
+    return toMinorUnits(parsed);
+  };
+
+  const reconciliation = useMemo(() => {
+    const openingMinor = parseBalanceInput(statementDetails.openingBalance);
+    const closingMinor = parseBalanceInput(statementDetails.closingBalance);
+
+    if (openingMinor === null || closingMinor === null) return null;
+
+    const expectedClosing = openingMinor + totals.netMinor;
+    const delta = closingMinor - expectedClosing;
+
+    return {
+      openingMinor,
+      closingMinor,
+      expectedClosing,
+      delta,
+      isBalanced: delta === 0,
+    };
+  }, [statementDetails, totals.netMinor]);
+
   const handleConfirm = () => {
+    if (newTransactions.length > 0 && reconciliation && statementDetails.startDate && statementDetails.endDate) {
+      localStore.addStatement({
+        accountId,
+        startDate: statementDetails.startDate,
+        endDate: statementDetails.endDate,
+        openingBalanceMinor: reconciliation.openingMinor,
+        closingBalanceMinor: reconciliation.closingMinor,
+        transactionIds: newTransactions.map(t => t.id),
+        currency: 'EUR',
+      });
+    }
     onConfirm(newTransactions);
   };
+
+  const formatMinor = (value: number) => formatCurrency(Math.abs(value) / 100);
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('fr-FR', {
@@ -124,12 +206,82 @@ export const ImportPreviewModal = ({
           </div>
           <div className="rounded-xl bg-primary/10 p-3 text-center">
             <p className="text-xs text-muted-foreground">Revenus</p>
-            <p className="text-sm font-bold text-success">+{formatCurrency(totalIncome)}</p>
+            <p className="text-sm font-bold text-success">+{formatMinor(totals.incomeMinor)}</p>
           </div>
           <div className="rounded-xl bg-destructive/10 p-3 text-center">
             <p className="text-xs text-muted-foreground">Dépenses</p>
-            <p className="text-sm font-bold text-destructive">-{formatCurrency(totalExpenses)}</p>
+            <p className="text-sm font-bold text-destructive">-{formatMinor(totals.expenseMinor)}</p>
           </div>
+        </div>
+
+        {/* Statement reconciliation */}
+        <div className="p-4 border-b border-border bg-muted/10 space-y-3">
+          <div className="flex flex-wrap gap-3">
+            <div className="flex-1 min-w-[200px] space-y-1">
+              <p className="text-xs text-muted-foreground">Période du relevé</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={statementDetails.startDate}
+                  onChange={(e) => setStatementDetails(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <input
+                  type="date"
+                  value={statementDetails.endDate}
+                  onChange={(e) => setStatementDetails(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-[200px] space-y-1">
+              <p className="text-xs text-muted-foreground">Balances (EUR)</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Solde initial"
+                  value={statementDetails.openingBalance}
+                  onChange={(e) => setStatementDetails(prev => ({ ...prev, openingBalance: e.target.value }))}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Solde final"
+                  value={statementDetails.closingBalance}
+                  onChange={(e) => setStatementDetails(prev => ({ ...prev, closingBalance: e.target.value }))}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {reconciliation ? (
+            <div className={cn(
+              'rounded-xl p-3 flex items-center justify-between border',
+              reconciliation.isBalanced
+                ? 'bg-success/10 border-success/30 text-success'
+                : 'bg-destructive/5 border-destructive/30 text-destructive'
+            )}>
+              <div className="space-y-1 text-sm">
+                <p className="font-semibold">
+                  {reconciliation.isBalanced
+                    ? '✅ Relevé réconcilié'
+                    : `❌ Écart de ${formatMinor(reconciliation.delta)}`}
+                </p>
+                <p className="text-muted-foreground">
+                  Variation calculée : {totals.netMinor >= 0 ? '+' : '-'}{formatMinor(totals.netMinor)} · Solde attendu : {formatMinor(reconciliation.expectedClosing)} · Solde déclaré : {formatMinor(reconciliation.closingMinor)}
+                </p>
+              </div>
+              {!reconciliation.isBalanced && (
+                <AlertTriangle className="h-4 w-4" />
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Ajoutez les soldes du relevé pour afficher un contrôle de cohérence.</p>
+          )}
         </div>
 
         {/* Duplicates Warning */}
@@ -184,7 +336,7 @@ export const ImportPreviewModal = ({
                     'text-right font-semibold whitespace-nowrap',
                     t.isIncome ? 'text-success' : 'text-foreground'
                   )}>
-                    {t.isIncome ? '+' : '-'}{formatCurrency(t.amount)}
+                    {t.isIncome ? '+' : '-'}{formatMinor(deriveMinorAmount(t))}
                   </div>
                 </div>
               ))}

@@ -14,6 +14,7 @@ export type CategoryType =
   | 'other';
 
 export type TransactionSource = 'manual' | 'csv' | 'pdf';
+export type TransactionStatus = 'pending' | 'posted';
 
 export type AccountType = 'checking' | 'savings' | 'cash' | 'investment' | 'custom';
 
@@ -26,6 +27,8 @@ export interface Account {
   type: AccountType;
   createdAt: string;
   notes?: string;
+  currency?: string;
+  referenceBalanceMinor?: number;
 }
 
 export interface Transaction {
@@ -33,13 +36,34 @@ export interface Transaction {
   accountId: string;
   date: Date;
   label: string;
+  normalizedLabel?: string;
   amount: number;
+  amountMinor?: number;
   category: CategoryType;
   isIncome: boolean;
   notes?: string;
   tags?: string[];
   source: TransactionSource;
+  status?: TransactionStatus;
+  currency?: string;
+  valueDate?: string;
+  dedupeHash?: string;
+  rawFingerprint?: string;
+  rawSource?: string;
   createdAt: string;
+}
+
+export interface Statement {
+  id: string;
+  accountId: string;
+  startDate: string;
+  endDate: string;
+  openingBalanceMinor: number;
+  closingBalanceMinor: number;
+  sourceFileId?: string;
+  importedAt: string;
+  transactionIds: string[];
+  currency?: string;
 }
 
 export interface CategoryRule {
@@ -133,5 +157,6 @@ export interface BackupData {
     ignoredRecurring: string[];
     initialBalance?: number;
     selectedAccountId?: string;
+    statements?: Statement[];
   };
 }

@@ -1,7 +1,8 @@
-import { Transaction, CategoryRule, ProjectionSettings, BackupData, Account } from './types';
+import { Transaction, CategoryRule, ProjectionSettings, BackupData, Account, Statement } from './types';
 import { DEFAULT_CATEGORY_RULES } from './categories';
 import { Budget, DEFAULT_BUDGETS } from './budgets';
 import { FinancialGoal } from './goals';
+import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from './normalization';
 
 const STORAGE_KEYS = {
   TRANSACTIONS: 'finance_transactions',
@@ -15,6 +16,7 @@ const STORAGE_KEYS = {
   INITIAL_BALANCE: 'finance_initial_balance',
   ACCOUNTS: 'finance_accounts',
   SELECTED_ACCOUNT: 'finance_selected_account',
+  STATEMENTS: 'finance_statements',
 };
 
 export interface AddTransactionsResult {
@@ -38,7 +40,33 @@ const createDefaultAccount = (): Account => ({
   name: 'Compte Principal',
   type: 'checking',
   createdAt: new Date().toISOString(),
+  currency: DEFAULT_CURRENCY,
 });
+
+const DEFAULT_CURRENCY = 'EUR';
+
+const enrichTransaction = (transaction: Transaction): Transaction => {
+  const normalizedLabel = transaction.normalizedLabel || normalizeLabel(transaction.label);
+  const amountMinor = typeof transaction.amountMinor === 'number'
+    ? transaction.amountMinor
+    : (transaction.isIncome ? 1 : -1) * toMinorUnits(Math.abs(transaction.amount));
+  const dedupeHash = transaction.dedupeHash || buildTransactionFingerprint({
+    accountId: transaction.accountId || '',
+    date: transaction.date,
+    amountMinor,
+    normalizedLabel,
+    source: transaction.source,
+  });
+
+  return {
+    ...transaction,
+    normalizedLabel,
+    amountMinor,
+    currency: transaction.currency || DEFAULT_CURRENCY,
+    dedupeHash,
+    status: transaction.status || 'posted',
+  };
+};
 
 export const localStore = {
   // Accounts
@@ -61,6 +89,7 @@ export const localStore = {
       ...account,
       id: generateId(),
       createdAt: new Date().toISOString(),
+      currency: account.currency || DEFAULT_CURRENCY,
     };
     const accounts = localStore.getAccounts();
     localStore.setAccounts([...accounts, newAccount]);
@@ -140,7 +169,7 @@ export const localStore = {
     if (!data) return [];
     try {
       const parsed = JSON.parse(data);
-      return parsed.map((t: any) => ({
+      return parsed.map((t: any) => enrichTransaction({
         ...t,
         date: new Date(t.date),
         // Ensure backward compatibility for old transactions
@@ -155,7 +184,8 @@ export const localStore = {
   },
 
   setTransactions: (transactions: Transaction[]): void => {
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
+    const normalized = transactions.map(enrichTransaction);
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(normalized));
   },
 
   /**
@@ -166,27 +196,65 @@ export const localStore = {
   addTransactions: (newTransactions: Transaction[]): AddTransactionsResult => {
     const existing = localStore.getTransactions();
     const existingIds = new Set(existing.map(t => t.id));
-    
+    const existingFingerprints = new Set(existing.map(t => t.dedupeHash || t.id));
+
     let added = 0;
     let skipped = 0;
-    
-    const unique = newTransactions.filter(t => {
-      if (existingIds.has(t.id)) {
-        skipped++;
-        return false;
-      }
-      added++;
-      return true;
-    });
-    
+
+    const unique = newTransactions
+      .map(enrichTransaction)
+      .filter(t => {
+        const fingerprint = t.dedupeHash || t.id;
+        if (existingIds.has(t.id) || existingFingerprints.has(fingerprint)) {
+          skipped++;
+          return false;
+        }
+        added++;
+        return true;
+      });
+
     const all = [...existing, ...unique];
     localStore.setTransactions(all);
-    
+
     return { all, added, skipped };
   },
 
   clearTransactions: (): void => {
     localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+  },
+
+  // Statements
+  getStatements: (): Statement[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.STATEMENTS);
+    if (!data) return [];
+    try {
+      const parsed = JSON.parse(data);
+      return parsed.map((s: any) => ({
+        ...s,
+        importedAt: s.importedAt || new Date().toISOString(),
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  setStatements: (statements: Statement[]): void => {
+    localStorage.setItem(STORAGE_KEYS.STATEMENTS, JSON.stringify(statements));
+  },
+
+  addStatement: (statement: Omit<Statement, 'id' | 'importedAt'>): Statement => {
+    const statements = localStore.getStatements();
+    const newStatement: Statement = {
+      ...statement,
+      id: generateId(),
+      importedAt: new Date().toISOString(),
+    };
+    localStore.setStatements([...statements, newStatement]);
+    return newStatement;
+  },
+
+  getStatementsByAccount: (accountId: string): Statement[] => {
+    return localStore.getStatements().filter(s => s.accountId === accountId);
   },
 
   // Category Rules
@@ -313,11 +381,12 @@ export const localStore = {
   // Backup & Restore
   exportAllData: (): BackupData => {
     return {
-      version: 'v6',
+      version: 'v7',
       exportedAt: new Date().toISOString(),
       data: {
         accounts: localStore.getAccounts(),
         transactions: localStore.getTransactions(),
+        statements: localStore.getStatements(),
         rules: localStore.getRules(),
         budgets: localStore.getBudgets(),
         goals: localStore.getGoals(),
@@ -366,6 +435,16 @@ export const localStore = {
     if (backup.data.ignoredRecurring) localStore.setIgnoredRecurring(backup.data.ignoredRecurring);
     if (typeof backup.data.initialBalance === 'number') localStore.setInitialBalance(backup.data.initialBalance);
     if (backup.data.selectedAccountId) localStore.setSelectedAccountId(backup.data.selectedAccountId);
+    if (backup.data.statements) {
+      if (mergeTransactions) {
+        const existing = localStore.getStatements();
+        const existingIds = new Set(existing.map(s => s.id));
+        const merged = [...existing, ...backup.data.statements.filter(s => !existingIds.has(s.id))];
+        localStore.setStatements(merged);
+      } else {
+        localStore.setStatements(backup.data.statements);
+      }
+    }
 
     // Handle transactions
     if (backup.data.transactions) {

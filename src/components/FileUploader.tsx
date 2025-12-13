@@ -7,6 +7,7 @@ import { localStore } from '@/utils/localStore';
 import { ImportPreviewModal } from './ImportPreviewModal';
 import { AccountSelector } from './AccountSelector';
 import { cn } from '@/lib/utils';
+import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from '@/utils/normalization';
 
 interface FileUploaderProps {
   onUpload: (transactions: Transaction[]) => void;
@@ -75,12 +76,29 @@ export const FileUploader = ({ onUpload, onClear, hasData }: FileUploaderProps) 
       } else {
         transactions = await parseCSV(file);
       }
-      
+
       // Assign accountId to all parsed transactions
-      transactions = transactions.map(t => ({
-        ...t,
-        accountId: selectedAccountId,
-      }));
+      transactions = transactions.map(t => {
+        const normalizedLabel = t.normalizedLabel || normalizeLabel(t.label);
+        const amountMinor = typeof t.amountMinor === 'number'
+          ? t.amountMinor
+          : (t.isIncome ? 1 : -1) * toMinorUnits(Math.abs(t.amount));
+        const dedupeHash = buildTransactionFingerprint({
+          accountId: selectedAccountId,
+          date: t.date,
+          amountMinor,
+          normalizedLabel,
+          source: t.source,
+        });
+
+        return {
+          ...t,
+          accountId: selectedAccountId,
+          normalizedLabel,
+          amountMinor,
+          dedupeHash,
+        };
+      });
       
       if (transactions.length === 0) {
         setError('Aucune transaction valide trouvée dans le fichier');
