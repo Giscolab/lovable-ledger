@@ -33,6 +33,7 @@ const categoryColors: Record<CategoryType, string> = {
   entertainment: 'hsl(260, 70%, 60%)',
   health: 'hsl(180, 60%, 45%)',
   household: 'hsl(35, 60%, 50%)',
+  internal_transfer: 'hsl(210, 10%, 55%)',
   streaming: 'hsl(265, 70%, 60%)',
   subscriptions: 'hsl(230, 50%, 55%)',
   clothing: 'hsl(310, 60%, 55%)',

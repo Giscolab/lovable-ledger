@@ -16,6 +16,7 @@ export type CategoryType =
   | 'entertainment'
   | 'health'
   | 'household'
+  | 'internal_transfer'
   | 'streaming'
   | 'subscriptions'
   | 'clothing'

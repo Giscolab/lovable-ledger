@@ -26,6 +26,7 @@ const categoryColorClasses: Record<CategoryType, string> = {
   entertainment: 'bg-category-entertainment/15 text-category-entertainment border-category-entertainment/30',
   health: 'bg-category-health/15 text-category-health border-category-health/30',
   household: 'bg-category-other/15 text-category-other border-category-other/30',
+  internal_transfer: 'bg-category-other/15 text-category-other border-category-other/30',
   streaming: 'bg-category-entertainment/15 text-category-entertainment border-category-entertainment/30',
   subscriptions: 'bg-category-other/15 text-category-other border-category-other/30',
   clothing: 'bg-category-shopping/15 text-category-shopping border-category-shopping/30',

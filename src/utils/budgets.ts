@@ -15,6 +15,10 @@ export interface BudgetAlert {
   isOverBudget: boolean;
 }
 
+export const NON_BUDGETABLE_CATEGORIES: CategoryType[] = [
+  'internal_transfer',
+];
+
 export const DEFAULT_BUDGETS: Budget[] = [
   // Catégories de base (inchangées)
   { id: '1', category: 'groceries',     limit: 400, isEnabled: true },
@@ -61,7 +65,12 @@ export function checkBudgetAlerts(
   const alerts: BudgetAlert[] = [];
 
   for (const budget of budgets) {
-    if (!budget.isEnabled || budget.limit === 0) continue;
+    if (
+      !budget.isEnabled ||
+      budget.limit === 0 ||
+      NON_BUDGETABLE_CATEGORIES.includes(budget.category)
+    )
+      continue;
 
     const spent = Math.abs(spentByCategory[budget.category] || 0);
     const percentage = (spent / budget.limit) * 100;

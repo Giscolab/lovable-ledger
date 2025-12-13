@@ -1,6 +1,6 @@
 import { Transaction, CategoryRule, ProjectionSettings, BackupData, Account, Statement } from './types';
 import { DEFAULT_CATEGORY_RULES } from './categories';
-import { Budget, DEFAULT_BUDGETS } from './budgets';
+import { Budget, DEFAULT_BUDGETS, NON_BUDGETABLE_CATEGORIES } from './budgets';
 import { FinancialGoal } from './goals';
 import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from './normalization';
 
@@ -330,7 +330,11 @@ export const localStore = {
   },
 
   setBudgets: (budgets: Budget[]): void => {
-    localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
+    const sanitizedBudgets = budgets.filter(
+      budget => !NON_BUDGETABLE_CATEGORIES.includes(budget.category)
+    );
+
+    localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(sanitizedBudgets));
   },
 
   // Goals
