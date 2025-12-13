@@ -5,6 +5,78 @@ import { localStore } from './localStore';
 import { computeTransactionId } from './transactionId';
 import { buildTransactionFingerprint, normalizeLabel, parseEuroToCents } from './normalization';
 
+interface CSVColumnMapping {
+  dateIndex: number;
+  labelIndex: number;
+  amountIndex?: number;
+  debitIndex?: number;
+  creditIndex?: number;
+}
+
+/**
+ * Detects the column structure from CSV headers
+ */
+const detectColumnMapping = (headers: string[]): CSVColumnMapping | null => {
+  const normalized = headers.map(h => h.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').trim());
+  
+  let dateIndex = -1;
+  let labelIndex = -1;
+  let amountIndex = -1;
+  let debitIndex = -1;
+  let creditIndex = -1;
+
+  normalized.forEach((h, i) => {
+    if (h.includes('date') || h === 'jour') dateIndex = i;
+    if (h.includes('libelle') || h.includes('label') || h.includes('description') || h.includes('operation')) labelIndex = i;
+    if (h.includes('montant') || h === 'amount' || h === 'valeur') amountIndex = i;
+    if (h.includes('debit') || h === 'sortie' || h === 'depense') debitIndex = i;
+    if (h.includes('credit') || h === 'entree' || h === 'recette') creditIndex = i;
+  });
+
+  // If we found debit/credit columns but no amount, that's the 4-column format
+  if (dateIndex >= 0 && labelIndex >= 0 && (debitIndex >= 0 || creditIndex >= 0)) {
+    return { dateIndex, labelIndex, debitIndex, creditIndex };
+  }
+
+  // Standard 3-column format
+  if (dateIndex >= 0 && labelIndex >= 0 && amountIndex >= 0) {
+    return { dateIndex, labelIndex, amountIndex };
+  }
+
+  return null;
+};
+
+/**
+ * Parses a single amount from debit/credit columns
+ * Debit = expense (negative), Credit = income (positive)
+ */
+const parseDebitCredit = (debitStr: string | undefined, creditStr: string | undefined): number => {
+  const debit = debitStr?.trim();
+  const credit = creditStr?.trim();
+
+  // Try credit first (income = positive)
+  if (credit && credit !== '' && credit !== '0' && credit !== '0,00' && credit !== '0.00') {
+    try {
+      const cents = parseEuroToCents(credit);
+      return Math.abs(cents); // Credit is always positive
+    } catch {
+      // Continue to try debit
+    }
+  }
+
+  // Try debit (expense = negative)
+  if (debit && debit !== '' && debit !== '0' && debit !== '0,00' && debit !== '0.00') {
+    try {
+      const cents = parseEuroToCents(debit);
+      return -Math.abs(cents); // Debit is always negative
+    } catch {
+      return 0;
+    }
+  }
+
+  return 0;
+};
+
 export const parseCSV = (file: File): Promise<Transaction[]> => {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
@@ -15,64 +87,84 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
           const rules = localStore.getRules();
           const transactions: Transaction[] = [];
           const now = new Date().toISOString();
+          const rows = results.data as string[][];
 
-          results.data.forEach((row: any, index: number) => {
-            // Skip header row if present
-            if (index === 0) {
-              const firstCell = String(row[0] || '').toLowerCase();
-              if (firstCell.includes('date') || firstCell.includes('libellé') || firstCell.includes('libelle')) {
-                return;
-              }
+          if (rows.length === 0) {
+            resolve([]);
+            return;
+          }
+
+          // Try to detect column mapping from first row
+          let mapping: CSVColumnMapping | null = null;
+          let startRow = 0;
+
+          // Check if first row looks like headers
+          const firstRow = rows[0];
+          if (firstRow && firstRow.length > 0) {
+            const firstCell = String(firstRow[0] || '').toLowerCase();
+            if (firstCell.includes('date') || firstCell.includes('libelle') || firstCell.includes('libellé')) {
+              mapping = detectColumnMapping(firstRow.map(String));
+              startRow = 1; // Skip header row
+            }
+          }
+
+          // Default mapping if no headers detected (assume standard 3-column format)
+          if (!mapping) {
+            mapping = { dateIndex: 0, labelIndex: 1, amountIndex: 2 };
+          }
+
+          console.log('[CSV Parser] Detected mapping:', mapping);
+
+          for (let i = startRow; i < rows.length; i++) {
+            let row = rows[i];
+            
+            // Handle case where row is a single string (semicolon separated)
+            if (row.length === 1 && typeof row[0] === 'string' && row[0].includes(';')) {
+              row = row[0].split(';');
             }
 
-            // Handle both semicolon and comma separated values
-            let dateStr: string, label: string, amountStr: string;
+            if (row.length < 2) continue;
 
-            if (row.length >= 3) {
-              [dateStr, label, amountStr] = row;
-            } else if (row.length === 1 && typeof row[0] === 'string') {
-              // Try splitting by semicolon
-              const parts = row[0].split(';');
-              if (parts.length >= 3) {
-                [dateStr, label, amountStr] = parts;
-              } else {
-                return;
-              }
-            } else {
-              return;
-            }
+            const dateStr = String(row[mapping.dateIndex] || '').trim();
+            const label = String(row[mapping.labelIndex] || '').trim();
 
-            // Clean and validate data
-            if (!dateStr || !label || !amountStr) return;
-
-            dateStr = dateStr.trim();
-            label = label.trim();
-            amountStr = String(amountStr).trim();
+            if (!dateStr || !label) continue;
 
             // Parse date (handle DD/MM/YYYY format)
-            const dateParts = dateStr.split('/');
+            const dateParts = dateStr.split(/[\/\.\-]/);
             let date: Date;
             if (dateParts.length === 3) {
-              date = new Date(
-                parseInt(dateParts[2]),
-                parseInt(dateParts[1]) - 1,
-                parseInt(dateParts[0])
-              );
+              let year = parseInt(dateParts[2]);
+              if (year < 100) year += 2000;
+              date = new Date(year, parseInt(dateParts[1]) - 1, parseInt(dateParts[0]));
             } else {
               date = new Date(dateStr);
             }
 
-            if (isNaN(date.getTime())) return;
+            if (isNaN(date.getTime())) continue;
 
+            // Parse amount based on column format
             let amountMinor: number;
-            try {
-              amountMinor = parseEuroToCents(amountStr);
-            } catch (error) {
-              console.warn(`[CSV Parser] Ignoring invalid amount "${amountStr}":`, error);
-              return;
+            
+            if (mapping.amountIndex !== undefined) {
+              // Single amount column
+              const amountStr = String(row[mapping.amountIndex] || '').trim();
+              if (!amountStr) continue;
+              
+              try {
+                amountMinor = parseEuroToCents(amountStr);
+              } catch (error) {
+                console.warn(`[CSV Parser] Ignoring invalid amount "${amountStr}":`, error);
+                continue;
+              }
+            } else {
+              // Debit/Credit columns
+              const debitStr = mapping.debitIndex !== undefined ? String(row[mapping.debitIndex] || '') : undefined;
+              const creditStr = mapping.creditIndex !== undefined ? String(row[mapping.creditIndex] || '') : undefined;
+              amountMinor = parseDebitCredit(debitStr, creditStr);
             }
 
-            if (amountMinor === 0) return;
+            if (amountMinor === 0) continue;
 
             const isIncome = amountMinor > 0;
             const category = categorizeTransaction(label, rules);
@@ -108,8 +200,9 @@ export const parseCSV = (file: File): Promise<Transaction[]> => {
               status: 'posted',
               currency: 'EUR',
             });
-          });
+          }
 
+          console.log(`[CSV Parser] Parsed ${transactions.length} transactions`);
           resolve(transactions);
         } catch (error) {
           reject(error);

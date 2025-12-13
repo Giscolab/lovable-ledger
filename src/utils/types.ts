@@ -1,8 +1,12 @@
 export type CategoryType =
   | 'rent'
   | 'utilities'
+  | 'electricity'
+  | 'water'
   | 'insurance'
+  | 'home_insurance'
   | 'internet'
+  | 'mobile'
   | 'transport'
   | 'investments'
   | 'groceries'
@@ -11,6 +15,18 @@ export type CategoryType =
   | 'smoking'
   | 'entertainment'
   | 'health'
+  | 'household'
+  | 'streaming'
+  | 'subscriptions'
+  | 'clothing'
+  | 'beauty'
+  | 'gifts'
+  | 'hobbies'
+  | 'travel'
+  | 'bank_fees'
+  | 'taxes'
+  | 'donations'
+  | 'unexpected'
   | 'other';
 
 export type TransactionSource = 'manual' | 'csv' | 'pdf';
