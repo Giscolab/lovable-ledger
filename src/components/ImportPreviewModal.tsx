@@ -155,6 +155,16 @@ export const ImportPreviewModal = ({
   }, [statementDetails, totals.netMinor]);
 
   const handleConfirm = () => {
+    const openingBalance = parseBalanceInput(statementDetails.openingBalance);
+    const closingBalance = parseBalanceInput(statementDetails.closingBalance);
+
+    if (openingBalance !== null && closingBalance !== null) {
+      const delta = openingBalance + newTransactions.reduce((sum, t) => sum + deriveMinorAmount(t), 0) - closingBalance;
+      if (Math.abs(delta) > 1) {
+        throw new Error(`Relevé non reconcilié : écart ${delta} centimes`);
+      }
+    }
+
     if (newTransactions.length > 0 && reconciliation && statementDetails.startDate && statementDetails.endDate) {
       localStore.addStatement({
         accountId,

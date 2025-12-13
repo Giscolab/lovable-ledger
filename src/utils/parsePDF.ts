@@ -144,6 +144,10 @@ function parseTransactionLineWithLayout(
   columnLayout: { debitMinX: number; debitMaxX: number; creditMinX: number; creditMaxX: number } | null
 ): Transaction | null {
   const fullText = line.items.map(i => i.text).join(' ');
+
+  const hasExplicitSign = line.items.some(i =>
+    /^[+\-−]\s*\d/.test(i.text)
+  );
   
   // Enhanced date patterns for French bank statements
   const datePatterns = [
@@ -186,7 +190,7 @@ function parseTransactionLineWithLayout(
   let amountMinor = 0;
   let isIncome = false;
   
-  if (columnLayout) {
+  if (columnLayout && !hasExplicitSign) {
     // Find amounts in debit and credit columns based on X position
     let debitAmount = 0;
     let creditAmount = 0;
@@ -195,11 +199,11 @@ function parseTransactionLineWithLayout(
       const amountMatch = item.text.match(/^-?\d[\d\s,]*[,\.]\d{2}$/);
       if (amountMatch) {
         try {
-          const cents = Math.abs(parseEuroToCents(item.text));
+          const cents = parseEuroToCents(item.text);
           if (item.x >= columnLayout.debitMinX && item.x <= columnLayout.debitMaxX) {
-            debitAmount = cents;
+            debitAmount = Math.abs(cents);
           } else if (item.x >= columnLayout.creditMinX && item.x <= columnLayout.creditMaxX) {
-            creditAmount = cents;
+            creditAmount = Math.abs(cents);
           }
         } catch {
           // Ignore parse errors
@@ -218,63 +222,15 @@ function parseTransactionLineWithLayout(
   
   // Fallback to text-based parsing if column layout didn't work
   if (amountMinor === 0) {
-    const restOfLine = fullText.slice(dateMatchIndex + dateStr.length).trim();
-    
-    const amountPatterns = [
-      /-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g,
-      /-?\d+,\d{2}/g,
-      /-?\d+\.\d{2}/g,
-    ];
-    
-    let amounts: string[] = [];
-    for (const pattern of amountPatterns) {
-      const matches = restOfLine.match(pattern);
-      if (matches && matches.length > 0) {
-        amounts = matches;
-        break;
-      }
-    }
-    
-    if (amounts.length === 0) return null;
-    
-    const parsedAmounts: number[] = [];
-    for (const raw of amounts) {
-      try {
-        const cents = parseEuroToCents(raw);
-        if (cents !== 0) parsedAmounts.push(cents);
-      } catch {
-        // Ignore parse errors
-      }
-    }
-    
-    if (parsedAmounts.length === 0) return null;
-    
-    // For Caisse d'Épargne format with 2 amounts: first is typically debit, second credit
-    if (parsedAmounts.length >= 2) {
-      const first = Math.abs(parsedAmounts[0]);
-      const second = Math.abs(parsedAmounts[1]);
-      
-      // If first amount is non-zero, it's likely the active one
-      // Check original sign to determine direction
-      if (parsedAmounts[0] < 0) {
-        amountMinor = -first;
-        isIncome = false;
-      } else if (parsedAmounts[0] > 0 && parsedAmounts[1] === 0) {
-        // First column has value, second is empty/zero - likely debit
-        amountMinor = -first;
-        isIncome = false;
-      } else if (parsedAmounts[1] > 0) {
-        // Second column has value - likely credit
-        amountMinor = second;
-        isIncome = true;
-      } else {
-        amountMinor = parsedAmounts[0];
-        isIncome = amountMinor > 0;
-      }
-    } else {
-      amountMinor = parsedAmounts[0];
-      isIncome = amountMinor > 0;
-    }
+    const signedAmountMatch =
+      fullText.match(/([+\-−])\s*([0-9][0-9\s]*[,\.]\d{2})\s*$/);
+
+    if (!signedAmountMatch) return null;
+
+    amountMinor = parseEuroToCents(
+      signedAmountMatch[1] + signedAmountMatch[2]
+    );
+    isIncome = amountMinor > 0;
   }
 
   if (amountMinor === 0 || Math.abs(amountMinor) > 100000000) return null;
