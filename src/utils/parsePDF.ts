@@ -196,7 +196,7 @@ function parseTransactionLineWithLayout(
     let creditAmount = 0;
     
     for (const item of line.items) {
-      const amountMatch = item.text.match(/^-?\d[\d\s,]*[,\.]\d{2}$/);
+      const amountMatch = item.text.match(/^[+\-−]?\s*\d[\d\s,]*[,\.]\d{2}$/);
       if (amountMatch) {
         try {
           const cents = parseEuroToCents(item.text);
@@ -222,6 +222,8 @@ function parseTransactionLineWithLayout(
   
   // Fallback to text-based parsing if column layout didn't work
   if (amountMinor === 0) {
+    if (/solde|total|report|frais/i.test(fullText)) return null;
+
     const signedAmountMatch =
       fullText.match(/([+\-−])\s*([0-9][0-9\s]*[,\.]\d{2})\s*$/);
 
