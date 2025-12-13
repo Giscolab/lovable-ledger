@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Save, Trash2, Plus, Tag } from 'lucide-react';
+import { X, Save, Trash2, Plus, Tag, RefreshCw } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CATEGORY_LABELS } from '@/utils/categories';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
@@ -154,6 +154,14 @@ export const TransactionEditModal = ({
                 )}
               >
                 Dépense
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, isIncome: !form.isIncome })}
+                className="px-3 py-3 rounded-xl bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
+                title="Inverser le signe"
+              >
+                <RefreshCw className="h-4 w-4" />
               </button>
               <button
                 type="button"

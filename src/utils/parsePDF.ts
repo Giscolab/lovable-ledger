@@ -20,6 +20,40 @@ interface ParsedLine {
   items: { x: number; text: string }[];
 }
 
+/**
+ * Detects if the PDF uses separate Debit/Credit columns based on X positions
+ * Returns column boundaries for debit and credit if detected
+ */
+const detectDebitCreditColumns = (lines: ParsedLine[]): { debitMinX: number; debitMaxX: number; creditMinX: number; creditMaxX: number } | null => {
+  // Look for header lines containing "DEBIT" and "CREDIT"
+  for (const line of lines.slice(0, 30)) { // Check first 30 lines for headers
+    const items = line.items;
+    let debitX = -1;
+    let creditX = -1;
+
+    for (const item of items) {
+      const text = item.text.toUpperCase();
+      if (text.includes('DEBIT') || text.includes('DÉBIT')) {
+        debitX = item.x;
+      }
+      if (text.includes('CREDIT') || text.includes('CRÉDIT')) {
+        creditX = item.x;
+      }
+    }
+
+    if (debitX >= 0 && creditX >= 0) {
+      console.log(`[PDF Parser] Detected Debit/Credit columns at X: debit=${debitX}, credit=${creditX}`);
+      return {
+        debitMinX: debitX - 50,
+        debitMaxX: debitX + 80,
+        creditMinX: creditX - 50,
+        creditMaxX: creditX + 80,
+      };
+    }
+  }
+  return null;
+};
+
 export const parsePDF = async (file: File): Promise<Transaction[]> => {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -59,14 +93,16 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
   
   console.log(`[PDF Parser] Found ${allLines.length} lines`);
   
+  // Detect column structure
+  const columnLayout = detectDebitCreditColumns(allLines);
+  
   const transactions: Transaction[] = [];
   const rules = localStore.getRules();
   const now = new Date().toISOString();
   
   // Try to parse each line for transactions
   for (const line of allLines) {
-    const fullText = line.items.map(i => i.text).join(' ');
-    const transaction = parseTransactionLine(fullText, rules, now);
+    const transaction = parseTransactionLineWithLayout(line, rules, now, columnLayout);
     
     if (transaction) {
       const isDuplicate = transactions.some(t => 
@@ -98,7 +134,17 @@ export const parsePDF = async (file: File): Promise<Transaction[]> => {
   return transactions;
 };
 
-function parseTransactionLine(text: string, rules: any[], now: string): Transaction | null {
+/**
+ * Parse a transaction line using column layout information
+ */
+function parseTransactionLineWithLayout(
+  line: ParsedLine, 
+  rules: any[], 
+  now: string,
+  columnLayout: { debitMinX: number; debitMaxX: number; creditMinX: number; creditMaxX: number } | null
+): Transaction | null {
+  const fullText = line.items.map(i => i.text).join(' ');
+  
   // Enhanced date patterns for French bank statements
   const datePatterns = [
     /^(\d{2}[\/\.]\d{2}[\/\.]\d{4})/,
@@ -112,7 +158,7 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
   let dateMatchIndex = 0;
   
   for (const pattern of datePatterns) {
-    const match = text.match(pattern);
+    const match = fullText.match(pattern);
     if (match) {
       dateStr = match[1];
       dateMatchIndex = match.index || 0;
@@ -131,92 +177,122 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
     if (year < 100) year += 2000;
     date = new Date(year, parseInt(numericDateParts[1]) - 1, parseInt(numericDateParts[0]));
   } else {
-    // Try parsing text date
     date = new Date(dateStr);
   }
   
   if (isNaN(date.getTime())) return null;
   
-  // Get text after date
-  const restOfLine = text.slice(dateMatchIndex + dateStr.length).trim();
-  
-  // Enhanced amount patterns for French format
-  const amountPatterns = [
-    // With thousands separator (space or non-breaking space)
-    /-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g,
-    // Simple format with comma
-    /-?\d+,\d{2}/g,
-    // Simple format with dot
-    /-?\d+\.\d{2}/g,
-    // Euro symbol attached
-    /-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}\s?€/g,
-    /€\s?-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g,
-  ];
-  
-  let amounts: string[] = [];
-  for (const pattern of amountPatterns) {
-    const matches = restOfLine.match(pattern);
-    if (matches && matches.length > 0) {
-      amounts = matches;
-      break;
-    }
-  }
-  
-  if (amounts.length === 0) return null;
-  
-  const parsedAmounts: number[] = [];
-  for (const raw of amounts) {
-    try {
-      const cents = parseEuroToCents(raw);
-      if (cents !== 0) parsedAmounts.push(cents);
-    } catch (error) {
-      console.warn(`[PDF Parser] Ignoring invalid amount "${raw}":`, error);
-    }
-  }
-  
-  if (parsedAmounts.length === 0) return null;
-  
-  // Determine amount and direction
+  // If we have column layout, use it to determine debit/credit
   let amountMinor = 0;
   let isIncome = false;
   
-  // Caisse d'Épargne format: DEBIT | CREDIT columns
-  if (parsedAmounts.length >= 2) {
-    const first = parsedAmounts[0];
-    const second = parsedAmounts[1];
-
-    // Usually debit is negative or in first column, credit in second
-    if (first < 0) {
-      amountMinor = first;
-      isIncome = false;
-    } else if (second !== 0) {
-      amountMinor = second;
-      isIncome = second > 0;
-    } else {
-      amountMinor = first;
-      isIncome = first > 0;
+  if (columnLayout) {
+    // Find amounts in debit and credit columns based on X position
+    let debitAmount = 0;
+    let creditAmount = 0;
+    
+    for (const item of line.items) {
+      const amountMatch = item.text.match(/^-?\d[\d\s,]*[,\.]\d{2}$/);
+      if (amountMatch) {
+        try {
+          const cents = Math.abs(parseEuroToCents(item.text));
+          if (item.x >= columnLayout.debitMinX && item.x <= columnLayout.debitMaxX) {
+            debitAmount = cents;
+          } else if (item.x >= columnLayout.creditMinX && item.x <= columnLayout.creditMaxX) {
+            creditAmount = cents;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
     }
-  } else {
-    amountMinor = parsedAmounts[0];
-    isIncome = amountMinor > 0;
+    
+    if (debitAmount > 0) {
+      amountMinor = -debitAmount; // Debit is always negative (expense)
+      isIncome = false;
+    } else if (creditAmount > 0) {
+      amountMinor = creditAmount; // Credit is always positive (income)
+      isIncome = true;
+    }
+  }
+  
+  // Fallback to text-based parsing if column layout didn't work
+  if (amountMinor === 0) {
+    const restOfLine = fullText.slice(dateMatchIndex + dateStr.length).trim();
+    
+    const amountPatterns = [
+      /-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g,
+      /-?\d+,\d{2}/g,
+      /-?\d+\.\d{2}/g,
+    ];
+    
+    let amounts: string[] = [];
+    for (const pattern of amountPatterns) {
+      const matches = restOfLine.match(pattern);
+      if (matches && matches.length > 0) {
+        amounts = matches;
+        break;
+      }
+    }
+    
+    if (amounts.length === 0) return null;
+    
+    const parsedAmounts: number[] = [];
+    for (const raw of amounts) {
+      try {
+        const cents = parseEuroToCents(raw);
+        if (cents !== 0) parsedAmounts.push(cents);
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    
+    if (parsedAmounts.length === 0) return null;
+    
+    // For Caisse d'Épargne format with 2 amounts: first is typically debit, second credit
+    if (parsedAmounts.length >= 2) {
+      const first = Math.abs(parsedAmounts[0]);
+      const second = Math.abs(parsedAmounts[1]);
+      
+      // If first amount is non-zero, it's likely the active one
+      // Check original sign to determine direction
+      if (parsedAmounts[0] < 0) {
+        amountMinor = -first;
+        isIncome = false;
+      } else if (parsedAmounts[0] > 0 && parsedAmounts[1] === 0) {
+        // First column has value, second is empty/zero - likely debit
+        amountMinor = -first;
+        isIncome = false;
+      } else if (parsedAmounts[1] > 0) {
+        // Second column has value - likely credit
+        amountMinor = second;
+        isIncome = true;
+      } else {
+        amountMinor = parsedAmounts[0];
+        isIncome = amountMinor > 0;
+      }
+    } else {
+      amountMinor = parsedAmounts[0];
+      isIncome = amountMinor > 0;
+    }
   }
 
-  if (amountMinor === 0 || Math.abs(amountMinor) > 100000000) return null; // Sanity check (max 1,000,000 EUR)
+  if (amountMinor === 0 || Math.abs(amountMinor) > 100000000) return null;
 
   const amount = Math.abs(amountMinor) / 100;
   
-  // Extract label
+  // Extract label (everything between date and amounts)
+  const restOfLine = fullText.slice(dateMatchIndex + dateStr.length).trim();
   let label = restOfLine;
-  amounts.forEach(a => {
-    label = label.replace(a, '');
-  });
+  
+  // Remove all amount-like patterns
   label = label
+    .replace(/-?\d{1,3}(?:[\s\u00A0]\d{3})*[,\.]\d{2}/g, '')
     .replace(/€/g, '')
     .replace(/EUR/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
   
-  // Skip invalid labels
   if (label.length < 3) return null;
   
   // Skip headers and totals
@@ -242,7 +318,7 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
 
   return {
     id,
-    accountId: '', // Will be set during import
+    accountId: '',
     date,
     label,
     normalizedLabel,
@@ -253,7 +329,7 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
     source: 'pdf',
     dedupeHash: fingerprint,
     rawFingerprint: fingerprint,
-    rawSource: text,
+    rawSource: fullText,
     status: 'posted',
     currency: 'EUR',
     createdAt: now,
@@ -372,8 +448,9 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
   
   // Fallback: line-by-line parsing
   if (transactions.length === 0) {
-    for (const line of lines) {
-      const transaction = parseTransactionLine(line, rules, now);
+    for (const lineText of lines) {
+      const parsedLine: ParsedLine = { y: 0, items: [{ x: 0, text: lineText }] };
+      const transaction = parseTransactionLineWithLayout(parsedLine, rules, now, null);
       if (transaction) {
         const isDuplicate = transactions.some(t => t.id === transaction.id);
         if (!isDuplicate) {

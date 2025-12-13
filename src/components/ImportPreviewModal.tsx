@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, Check, AlertTriangle, FileSpreadsheet, FileText, ArrowRight, CreditCard } from 'lucide-react';
+import { X, Check, AlertTriangle, FileSpreadsheet, FileText, ArrowRight, CreditCard, RefreshCw } from 'lucide-react';
 import { Transaction, CategoryType } from '@/utils/types';
 import { CATEGORY_LABELS } from '@/utils/categories';
 import { formatCurrency } from '@/utils/computeStats';
@@ -97,6 +97,35 @@ export const ImportPreviewModal = ({
   const handleCategoryChange = (id: string, category: CategoryType) => {
     setEditedTransactions(prev =>
       prev.map(t => t.id === id ? { ...t, category } : t)
+    );
+  };
+
+  // Toggle sign for a single transaction
+  const handleToggleSign = (id: string) => {
+    setEditedTransactions(prev =>
+      prev.map(t => {
+        if (t.id !== id) return t;
+        const newAmountMinor = -(t.amountMinor || (t.isIncome ? Math.abs(t.amount) * 100 : -Math.abs(t.amount) * 100));
+        return {
+          ...t,
+          amountMinor: newAmountMinor,
+          isIncome: newAmountMinor > 0,
+        };
+      })
+    );
+  };
+
+  // Invert all signs
+  const handleInvertAllSigns = () => {
+    setEditedTransactions(prev =>
+      prev.map(t => {
+        const newAmountMinor = -(t.amountMinor || (t.isIncome ? Math.abs(t.amount) * 100 : -Math.abs(t.amount) * 100));
+        return {
+          ...t,
+          amountMinor: newAmountMinor,
+          isIncome: newAmountMinor > 0,
+        };
+      })
     );
   };
 
@@ -306,6 +335,18 @@ export const ImportPreviewModal = ({
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Invert all signs button */}
+              <div className="flex justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={handleInvertAllSigns}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Inverser tous les signes
+                </button>
+              </div>
+              
               {newTransactions.slice(0, 50).map((t) => (
                 <div
                   key={t.id}
@@ -332,9 +373,24 @@ export const ImportPreviewModal = ({
                     ))}
                   </select>
                   
+                  {/* Toggle sign button */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSign(t.id)}
+                    className={cn(
+                      'p-1.5 rounded-lg transition-colors',
+                      t.isIncome 
+                        ? 'bg-success/10 text-success hover:bg-success/20' 
+                        : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                    )}
+                    title="Inverser le signe"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                  
                   <div className={cn(
-                    'text-right font-semibold whitespace-nowrap',
-                    t.isIncome ? 'text-success' : 'text-foreground'
+                    'text-right font-semibold whitespace-nowrap min-w-[80px]',
+                    t.isIncome ? 'text-success' : 'text-destructive'
                   )}>
                     {t.isIncome ? '+' : '-'}{formatMinor(deriveMinorAmount(t))}
                   </div>

@@ -27,7 +27,8 @@ export const toMinorUnits = (amount: number): number => {
 /**
  * Parses a Euro amount string into cents while preserving the sign.
  * Handles common French formats, unicode minus, non-breaking spaces,
- * thousand separators, and parentheses for negatives.
+ * thousand separators, parentheses for negatives, trailing signs,
+ * and debit/credit indicators (DR/DB/CR).
  */
 export const parseEuroToCents = (raw: string): number => {
   if (!raw) return 0;
@@ -45,7 +46,26 @@ export const parseEuroToCents = (raw: string): number => {
     s = s.slice(1, -1).trim();
   }
 
-  // Detect explicit sign
+  // Check for trailing sign (e.g., "950,00-" or "950,00 -")
+  if (s.endsWith('-')) {
+    negative = true;
+    s = s.slice(0, -1).trim();
+  } else if (s.endsWith('+')) {
+    s = s.slice(0, -1).trim();
+  }
+
+  // Check for debit/credit indicators (DR/DB = debit = negative, CR = credit = positive)
+  const drMatch = s.match(/\s*(DR|DB|D)$/i);
+  const crMatch = s.match(/\s*(CR|C)$/i);
+  if (drMatch) {
+    negative = true;
+    s = s.replace(/\s*(DR|DB|D)$/i, '').trim();
+  } else if (crMatch) {
+    negative = false;
+    s = s.replace(/\s*(CR|C)$/i, '').trim();
+  }
+
+  // Detect explicit leading sign
   if (s.startsWith('-')) negative = true;
   if (s.startsWith('+') || s.startsWith('-')) {
     s = s.slice(1).trim();
@@ -54,22 +74,28 @@ export const parseEuroToCents = (raw: string): number => {
   // Remove currency symbol, spaces, and thin thousand separators
   s = s
     .replace(/€/g, '')
+    .replace(/EUR/gi, '')
     .replace(/\s+/g, '')
-    .replace(/['’]/g, '');
+    .replace(/['']/g, '');
 
   const hasComma = s.includes(',');
   const hasDot = s.includes('.');
 
   // Normalize decimal separator, dropping thousand separators
   if (hasComma && hasDot) {
-    // Assume the rightmost separator is the decimal one
     if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
       s = s.replace(/\./g, '').replace(',', '.');
     } else {
       s = s.replace(/,/g, '');
     }
   } else if (hasComma) {
-    s = s.replace(/,/g, '.');
+    const commaIndex = s.indexOf(',');
+    const afterComma = s.slice(commaIndex + 1);
+    if (afterComma.length === 3 && /^\d{3}$/.test(afterComma)) {
+      s = s.replace(/,/g, '');
+    } else {
+      s = s.replace(/,/g, '.');
+    }
   }
 
   const n = Number(s);

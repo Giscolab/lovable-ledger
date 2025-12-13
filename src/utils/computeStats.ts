@@ -17,9 +17,11 @@ export const computeMonthlyStats = (
   });
 
   const byCategory: Record<CategoryType, number> = {
-    rent: 0, utilities: 0, insurance: 0, internet: 0, transport: 0,
-    investments: 0, groceries: 0, food: 0, shopping: 0, smoking: 0,
-    entertainment: 0, health: 0, other: 0,
+    rent: 0, utilities: 0, electricity: 0, water: 0, insurance: 0, home_insurance: 0,
+    internet: 0, mobile: 0, transport: 0, investments: 0, groceries: 0, food: 0,
+    shopping: 0, smoking: 0, entertainment: 0, health: 0, household: 0, streaming: 0,
+    subscriptions: 0, clothing: 0, beauty: 0, gifts: 0, hobbies: 0, travel: 0,
+    bank_fees: 0, taxes: 0, donations: 0, unexpected: 0, other: 0,
   };
 
   let totalIncome = 0;
@@ -67,9 +69,11 @@ export const computeYearlyStats = (
   }
 
   const byCategory: Record<CategoryType, number> = {
-    rent: 0, utilities: 0, insurance: 0, internet: 0, transport: 0,
-    investments: 0, groceries: 0, food: 0, shopping: 0, smoking: 0,
-    entertainment: 0, health: 0, other: 0,
+    rent: 0, utilities: 0, electricity: 0, water: 0, insurance: 0, home_insurance: 0,
+    internet: 0, mobile: 0, transport: 0, investments: 0, groceries: 0, food: 0,
+    shopping: 0, smoking: 0, entertainment: 0, health: 0, household: 0, streaming: 0,
+    subscriptions: 0, clothing: 0, beauty: 0, gifts: 0, hobbies: 0, travel: 0,
+    bank_fees: 0, taxes: 0, donations: 0, unexpected: 0, other: 0,
   };
 
   let totalIncome = 0;
