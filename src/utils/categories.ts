@@ -1,7 +1,24 @@
 import { CategoryRule, CategoryType } from './types';
 
 export const DEFAULT_CATEGORY_RULES: CategoryRule[] = [
-  // INCOMPRESSIBLE - Charges fixes
+ 
+{
+  category: 'internal_transfer',
+  keywords: [
+    'virement',
+    'virement interne',
+    'transfer',
+    'transfert',
+    'compte à compte',
+    'entre comptes',
+    'retrait compte',
+    'versement compte',
+    'remboursement interne'
+  ],
+  isIncompressible: false,
+},
+
+ // INCOMPRESSIBLE - Charges fixes
   {
     category: 'rent',
     keywords: [
@@ -158,6 +175,7 @@ export const CATEGORY_LABELS: Record<CategoryType, string> = {
   taxes: 'Impôts',
   donations: 'Dons',
   unexpected: 'Imprévus',
+	internal_transfer: 'Virement interne',
   other: 'Divers',
 };
 
@@ -190,6 +208,7 @@ export const CATEGORY_ICONS: Record<CategoryType, string> = {
   taxes: '📑',
   donations: '❤️',
   unexpected: '⚠️',
+	internal_transfer: '↔️',
   other: '📦',
 };
 
@@ -237,6 +256,7 @@ export const getCategoryColorClass = (category: CategoryType): string => {
     taxes: 'bg-category-other',
     donations: 'bg-category-other',
     unexpected: 'bg-category-other',
+		internal_transfer: 'bg-category-transfer',
     other: 'bg-category-other',
   };
   return colorMap[category] || colorMap.other;
