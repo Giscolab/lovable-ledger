@@ -3,7 +3,7 @@ import { Transaction } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
 import { computeTransactionId } from './transactionId';
-import { buildTransactionFingerprint, normalizeLabel, toMinorUnits } from './normalization';
+import { buildTransactionFingerprint, normalizeLabel, parseEuroToCents } from './normalization';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -164,47 +164,46 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
   
   if (amounts.length === 0) return null;
   
-  // Parse and clean amounts
-  const cleanAmount = (raw: string): number => {
-    const cleaned = raw
-      .replace(/[\s\u00A0]/g, '')
-      .replace('€', '')
-      .replace(',', '.');
-    return parseFloat(cleaned);
-  };
-  
-  const parsedAmounts = amounts
-    .map(cleanAmount)
-    .filter(a => !isNaN(a) && a !== 0);
+  const parsedAmounts: number[] = [];
+  for (const raw of amounts) {
+    try {
+      const cents = parseEuroToCents(raw);
+      if (cents !== 0) parsedAmounts.push(cents);
+    } catch (error) {
+      console.warn(`[PDF Parser] Ignoring invalid amount "${raw}":`, error);
+    }
+  }
   
   if (parsedAmounts.length === 0) return null;
   
   // Determine amount and direction
-  let amount = 0;
+  let amountMinor = 0;
   let isIncome = false;
   
   // Caisse d'Épargne format: DEBIT | CREDIT columns
   if (parsedAmounts.length >= 2) {
     const first = parsedAmounts[0];
     const second = parsedAmounts[1];
-    
+
     // Usually debit is negative or in first column, credit in second
-    if (Math.abs(first) > 0 && first < 0) {
-      amount = Math.abs(first);
+    if (first < 0) {
+      amountMinor = first;
       isIncome = false;
-    } else if (Math.abs(second) > 0) {
-      amount = Math.abs(second);
+    } else if (second !== 0) {
+      amountMinor = second;
       isIncome = second > 0;
     } else {
-      amount = Math.abs(first);
+      amountMinor = first;
       isIncome = first > 0;
     }
   } else {
-    amount = Math.abs(parsedAmounts[0]);
-    isIncome = parsedAmounts[0] > 0;
+    amountMinor = parsedAmounts[0];
+    isIncome = amountMinor > 0;
   }
-  
-  if (amount === 0 || amount > 1000000) return null; // Sanity check
+
+  if (amountMinor === 0 || Math.abs(amountMinor) > 100000000) return null; // Sanity check (max 1,000,000 EUR)
+
+  const amount = Math.abs(amountMinor) / 100;
   
   // Extract label
   let label = restOfLine;
@@ -233,7 +232,6 @@ function parseTransactionLine(text: string, rules: any[], now: string): Transact
   const category = categorizeTransaction(label, rules);
   const id = computeTransactionId(date, label, amount, 'pdf');
   const normalizedLabel = normalizeLabel(label);
-  const amountMinor = toMinorUnits(isIncome ? amount : -amount);
   const fingerprint = buildTransactionFingerprint({
     accountId: '',
     date,
@@ -323,16 +321,22 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
     const date = new Date(year, parseInt(dateParts[1]) - 1, parseInt(dateParts[0]));
     if (isNaN(date.getTime())) continue;
     
-    const amount = parseFloat(amountStr.replace(/\s/g, '').replace(',', '.'));
-    if (isNaN(amount) || amount === 0) continue;
+    let amountMinor: number;
+    try {
+      amountMinor = parseEuroToCents(amountStr);
+    } catch (error) {
+      console.warn(`[PDF Alt Parser] Ignoring invalid amount "${amountStr}":`, error);
+      continue;
+    }
+
+    if (amountMinor === 0) continue;
     
     const cleanLabel = label.trim();
     if (cleanLabel.length < 3) continue;
     
     const category = categorizeTransaction(cleanLabel, rules);
-    const absAmount = Math.abs(amount);
+    const absAmount = Math.abs(amountMinor) / 100;
     const normalizedLabel = normalizeLabel(cleanLabel);
-    const amountMinor = toMinorUnits(amount);
     const id = computeTransactionId(date, cleanLabel, absAmount, 'pdf');
 
     const isDuplicate = transactions.some(t => t.id === id);
@@ -353,7 +357,7 @@ async function parsePDFAlternative(file: File): Promise<Transaction[]> {
         amount: absAmount,
         amountMinor,
         category,
-        isIncome: amount > 0,
+        isIncome: amountMinor > 0,
         source: 'pdf',
         dedupeHash: fingerprint,
         rawFingerprint: fingerprint,
