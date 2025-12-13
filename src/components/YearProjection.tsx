@@ -31,7 +31,9 @@ export const YearProjection = ({ stats }: YearProjectionProps) => {
 
   const monthlySavings = settings.monthlyIncome - stats.incompressible - settings.variableBudget;
   const yearlySavings = monthlySavings * 12;
-  const progressPercent = Math.min((yearlySavings / settings.savingsGoal) * 100, 100);
+  const hasSavingsGoal = settings.savingsGoal > 0;
+  const rawProgress = hasSavingsGoal ? (yearlySavings / settings.savingsGoal) * 100 : 0;
+  const progressPercent = Math.min(Math.max(rawProgress, 0), 100);
 
   const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
   const cumulativeSavings = months.map((_, i) => monthlySavings * (i + 1));
@@ -210,9 +212,11 @@ export const YearProjection = ({ stats }: YearProjectionProps) => {
           />
         </div>
         <p className="mt-2 text-xs text-muted-foreground text-center">
-          {yearlySavings >= settings.savingsGoal
-            ? '🎉 Objectif atteint !'
-            : `${formatCurrency(settings.savingsGoal - yearlySavings)} restant pour atteindre l'objectif`}
+          {!hasSavingsGoal
+            ? "Définissez un objectif d'épargne pour suivre votre progression"
+            : yearlySavings >= settings.savingsGoal
+              ? '🎉 Objectif atteint !'
+              : `${formatCurrency(settings.savingsGoal - yearlySavings)} restant pour atteindre l'objectif`}
         </p>
       </div>
 
