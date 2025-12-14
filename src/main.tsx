@@ -1,6 +1,8 @@
 import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
+import { localStore } from "./utils/localStore";
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
@@ -15,4 +17,16 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+const getDefaultTheme = () => {
+  if (typeof window === "undefined") {
+    return "system";
+  }
+
+  return localStore.getTheme() ?? "system";
+};
+
+createRoot(document.getElementById("root")!).render(
+  <ThemeProvider attribute="class" defaultTheme={getDefaultTheme()} enableSystem>
+    <App />
+  </ThemeProvider>
+);

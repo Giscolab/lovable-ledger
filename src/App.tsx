@@ -35,8 +35,6 @@ const AppContent = () => {
   useKeyboardShortcuts();
 
   useEffect(() => {
-    const theme = localStore.getTheme();
-    document.documentElement.classList.toggle('dark', theme === 'dark');
     // Initialize accounts on app start
     localStore.ensureAccountsInitialized();
   }, []);
