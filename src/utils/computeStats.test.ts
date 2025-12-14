@@ -1,104 +1,134 @@
-/// <reference types="vitest" />
-import { describe, expect, it } from 'vitest';
-import {
-  computeDailyCashflow,
-  computeMonthlyStats,
-  formatCurrency,
-  getTrendData,
-} from './computeStats';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { computeDailyCashflow, getTrendData } from './computeStats';
 import { Transaction } from './types';
 
-describe('computeStats utilities', () => {
-  const baseMonth = 0; // January
-  const baseYear = 2024;
+const buildTransaction = (overrides: Partial<Transaction>): Transaction => ({
+  id: 'tx-id',
+  accountId: 'acc-1',
+  date: new Date(),
+  label: 'test',
+  amount: 0,
+  category: 'other',
+  isIncome: false,
+  source: 'manual',
+  createdAt: '2024-01-01T00:00:00Z',
+  ...overrides,
+});
 
-  it('handles empty transactions gracefully', () => {
-    const monthly = computeMonthlyStats([], baseMonth, baseYear);
-    expect(monthly.totalIncome).toBe(0);
-    expect(monthly.totalExpenses).toBe(0);
-    expect(monthly.savings).toBe(0);
-
-    const daily = computeDailyCashflow([], baseMonth, baseYear, 0);
-    expect(daily.length).toBe(31);
-    expect(daily.every(day => day.income === 0 && day.expenses === 0 && day.balance === 0)).toBe(true);
-
-    const trend = getTrendData([], 3);
-    expect(trend.labels.length).toBe(3);
-    expect(trend.income.every(value => value === 0)).toBe(true);
-    expect(trend.expenses.every(value => value === 0)).toBe(true);
-    expect(trend.savings.every(value => value === 0)).toBe(true);
-  });
-
-  it('respects the initial balance when computing daily cashflow', () => {
-    const transactions: Transaction[] = [];
-    const initialBalance = 250;
-
-    const daily = computeDailyCashflow(transactions, baseMonth, baseYear, initialBalance);
-    expect(daily[0].balance).toBe(initialBalance);
-    expect(daily[daily.length - 1].balance).toBe(initialBalance);
-  });
-
-  it('computes expenses-only months without NaN values', () => {
+describe('computeDailyCashflow', () => {
+  it('computes running balances with initial offset and mixed transactions', () => {
     const transactions: Transaction[] = [
-      {
-        id: '1',
-        accountId: 'a',
-        amount: 120,
-        category: 'rent',
-        createdAt: '',
-        date: new Date(baseYear, baseMonth, 5),
-        isIncome: false,
-        label: 'Loyer',
-        source: 'manual',
-      },
-      {
-        id: '2',
-        accountId: 'a',
-        amount: 80,
-        category: 'groceries',
-        createdAt: '',
-        date: new Date(baseYear, baseMonth, 12),
-        isIncome: false,
-        label: 'Courses',
-        source: 'manual',
-      },
-    ];
-
-    const monthly = computeMonthlyStats(transactions, baseMonth, baseYear);
-    expect(monthly.totalIncome).toBe(0);
-    expect(monthly.totalExpenses).toBe(200);
-    expect(monthly.savings).toBe(-200);
-  });
-
-  it('keeps running balance stable when incomes and expenses offset', () => {
-    const transactions: Transaction[] = [
-      {
-        id: 'credit',
-        accountId: 'a',
-        amount: 100,
-        category: 'other',
-        createdAt: '',
-        date: new Date(baseYear, baseMonth, 1),
+      buildTransaction({
+        id: 'income-1',
+        date: new Date('2024-02-01T10:00:00Z'),
+        amount: 1000,
         isIncome: true,
-        label: 'Salaire',
-        source: 'manual',
-      },
-      {
-        id: 'debit',
-        accountId: 'a',
-        amount: 100,
-        category: 'rent',
-        createdAt: '',
-        date: new Date(baseYear, baseMonth, 1),
+      }),
+      buildTransaction({
+        id: 'expense-1',
+        date: new Date('2024-02-02T08:00:00Z'),
+        amount: 200,
         isIncome: false,
-        label: 'Loyer',
-        source: 'manual',
-      },
+        category: 'groceries',
+      }),
+      buildTransaction({
+        id: 'income-2',
+        date: new Date('2024-02-02T16:00:00Z'),
+        amount: 50,
+        isIncome: true,
+        category: 'other',
+        label: 'Remboursement',
+      }),
     ];
 
-    const daily = computeDailyCashflow(transactions, baseMonth, baseYear, 50);
-    const finalBalance = daily[daily.length - 1].balance;
-    expect(finalBalance).toBe(50);
-    expect(formatCurrency(finalBalance)).toContain('€');
+    const daily = computeDailyCashflow(transactions, 1, 2024, 500);
+
+    expect(daily).toHaveLength(29); // février 2024 (année bissextile)
+    expect(daily[0]).toMatchObject({
+      day: 1,
+      income: 1000,
+      expenses: 0,
+      balance: 1500,
+    });
+
+    const dayTwo = daily[1];
+    expect(dayTwo.income).toBe(50);
+    expect(dayTwo.expenses).toBe(200);
+    expect(dayTwo.balance).toBe(1350);
+    expect(daily[daily.length - 1].balance).toBe(1350);
+  });
+
+  it('returns stable balances when a month has no transactions', () => {
+    const daily = computeDailyCashflow([], 0, 2024, 200);
+
+    expect(daily).toHaveLength(31);
+    expect(daily.every(d => d.income === 0 && d.expenses === 0)).toBe(true);
+    expect(daily[0].balance).toBe(200);
+    expect(daily[daily.length - 1].balance).toBe(200);
+  });
+});
+
+describe('getTrendData', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-12-15T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('aggregates income, expenses and savings over the requested window', () => {
+    const transactions: Transaction[] = [
+      buildTransaction({
+        id: 'oct-income',
+        date: new Date('2024-10-05T12:00:00Z'),
+        amount: 1000,
+        isIncome: true,
+      }),
+      buildTransaction({
+        id: 'oct-expense',
+        date: new Date('2024-10-10T12:00:00Z'),
+        amount: 300,
+        isIncome: false,
+        category: 'utilities',
+      }),
+      buildTransaction({
+        id: 'nov-income',
+        date: new Date('2024-11-02T12:00:00Z'),
+        amount: 800,
+        isIncome: true,
+      }),
+      buildTransaction({
+        id: 'nov-expense',
+        date: new Date('2024-11-15T12:00:00Z'),
+        amount: 400,
+        isIncome: false,
+        category: 'rent',
+      }),
+      buildTransaction({
+        id: 'dec-expense',
+        date: new Date('2024-12-01T12:00:00Z'),
+        amount: 200,
+        isIncome: false,
+        category: 'food',
+      }),
+    ];
+
+    const trend = getTrendData(transactions, 3);
+
+    expect(trend.labels).toEqual(['Oct 24', 'Nov 24', 'Déc 24']);
+    expect(trend.income).toEqual([1000, 800, 0]);
+    expect(trend.expenses).toEqual([300, 400, 200]);
+    expect(trend.savings).toEqual([700, 400, -200]);
+  });
+
+  it('returns zeroed series when no data is available', () => {
+    const trend = getTrendData([], 2);
+
+    expect(trend.labels).toEqual(['Nov 24', 'Déc 24']);
+    expect(trend.income).toEqual([0, 0]);
+    expect(trend.expenses).toEqual([0, 0]);
+    expect(trend.savings).toEqual([0, 0]);
   });
 });

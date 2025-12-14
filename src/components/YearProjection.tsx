@@ -31,9 +31,12 @@ export const YearProjection = ({ stats }: YearProjectionProps) => {
 
   const monthlySavings = settings.monthlyIncome - stats.incompressible - settings.variableBudget;
   const yearlySavings = monthlySavings * 12;
-  const hasSavingsGoal = settings.savingsGoal > 0;
-  const rawProgress = hasSavingsGoal ? (yearlySavings / settings.savingsGoal) * 100 : 0;
-  const progressPercent = Math.min(Math.max(rawProgress, 0), 100);
+  const normalizedGoal = Number.isFinite(settings.savingsGoal) ? settings.savingsGoal : 0;
+  const hasSavingsGoal = normalizedGoal > 0;
+  const rawProgress = hasSavingsGoal ? (yearlySavings / normalizedGoal) * 100 : 0;
+  const progressPercent = Number.isFinite(rawProgress)
+    ? Math.min(Math.max(rawProgress, 0), 100)
+    : 0;
 
   const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
   const cumulativeSavings = months.map((_, i) => monthlySavings * (i + 1));
@@ -195,10 +198,12 @@ export const YearProjection = ({ stats }: YearProjectionProps) => {
             <TrendingUp className="h-4 w-4 text-success" />
             <span className="text-sm font-medium text-foreground">Progression vers l'objectif</span>
           </div>
-          <span className={cn(
-            'text-sm font-bold',
-            progressPercent >= 100 ? 'text-success' : 'text-primary'
-          )}>
+          <span
+            className={cn(
+              'text-sm font-bold',
+              progressPercent >= 100 ? 'text-success' : 'text-primary'
+            )}
+          >
             {Math.round(progressPercent)}%
           </span>
         </div>
@@ -214,9 +219,9 @@ export const YearProjection = ({ stats }: YearProjectionProps) => {
         <p className="mt-2 text-xs text-muted-foreground text-center">
           {!hasSavingsGoal
             ? "Définissez un objectif d'épargne pour suivre votre progression"
-            : yearlySavings >= settings.savingsGoal
-              ? '🎉 Objectif atteint !'
-              : `${formatCurrency(settings.savingsGoal - yearlySavings)} restant pour atteindre l'objectif`}
+            : yearlySavings >= normalizedGoal
+                ? '🎉 Objectif atteint !'
+                : `${formatCurrency(normalizedGoal - yearlySavings)} restant pour atteindre l'objectif`}
         </p>
       </div>
 

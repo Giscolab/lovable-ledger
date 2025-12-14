@@ -7,6 +7,12 @@ Application de gestion de finances personnelles 100% locale et respectueuse de l
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6)
 ![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
 
+## ℹ️ Infos projet
+
+- Espace Lovable : https://lovable.dev/projects/finance-pro (accès éditeur et prévisualisation)
+- Déploiement cible : application locale Vite/React (pas de backend distant)
+- Supabase (métadonnées et backups optionnels) : project_id `ipesvzdtofmplvrewbjt`
+
 ## 🎯 Philosophie
 
 **Local-First & Privacy-First** : Toutes les données restent sur votre appareil. Aucune API externe, aucune transmission de données. Vos informations financières ne quittent jamais votre navigateur.
