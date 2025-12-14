@@ -1,75 +1,232 @@
-# Welcome to your Lovable project
+# Finance Pro - Gestionnaire de Finances Personnelles
 
-## Project info
+Application de gestion de finances personnelles 100% locale et respectueuse de la vie privée. Conçue pour les relevés bancaires français, elle offre une expérience comparable aux applications bancaires commerciales.
 
-- **URL**: https://lovable.dev/projects/example-project
-- **Target environment**: Modern web browsers (Vite + React single-page app)
-- **Deployment**: Build static assets with `npm run build` and deploy via Lovable Publish or any static host with HTTPS
+![Finance Pro](https://img.shields.io/badge/Version-6.1-blue)
+![React](https://img.shields.io/badge/React-18.3-61dafb)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6)
+![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
 
-## How can I edit this code?
+## 🎯 Philosophie
 
-There are several ways of editing your application.
+**Local-First & Privacy-First** : Toutes les données restent sur votre appareil. Aucune API externe, aucune transmission de données. Vos informations financières ne quittent jamais votre navigateur.
 
-**Use Lovable**
+**Manual-First Workflow** : Entrez vos transactions quotidiennement. Importez vos relevés bancaires mensuellement comme sauvegarde/synchronisation, sans risque de perdre vos entrées manuelles.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/example-project) and start prompting.
+## ✨ Fonctionnalités Principales
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📊 Tableau de Bord
+- Statistiques mensuelles (revenus, dépenses, épargne, reste à vivre)
+- Graphique donut des dépenses par catégorie
+- Graphique de cashflow quotidien avec évolution cumulative
+- Alertes budgétaires en temps réel
+- Widget d'objectifs d'épargne
+- Détection automatique des transactions récurrentes
 
-**Use your preferred IDE**
+### 💳 Gestion Multi-Comptes (V6)
+- Comptes courants, épargne, espèces, investissement
+- Filtrage des données par compte sélectionné
+- IBAN et informations bancaires personnalisables
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 📥 Import de Données
+- **CSV** : Format français (Date; Libellé; Montant) avec support multi-colonnes (Débit/Crédit)
+- **PDF** : Relevés Caisse d'Épargne (parsing local via pdfjs-dist)
+- Prévisualisation avant import avec validation
+- Détection des doublons par ID déterministe
+- Correction des signes (revenus/dépenses) avant import
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🏷️ Catégorisation Automatique
+- 30+ catégories prédéfinies (Loyer, Énergie, Transport, Courses, etc.)
+- 100+ mots-clés de reconnaissance automatique
+- Règles personnalisables par l'utilisateur
+- Distinction charges fixes (incompressibles) vs variables
+- Tags personnalisés pour classification secondaire
 
-Follow these steps:
+### 📈 Projection Financière
+- Prévisions multi-années (2022-2042)
+- Paramètres annuels configurables
+- Objectif d'épargne avec suivi de progression
+- Calcul du "reste à vivre" mensuel
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 🎯 Objectifs d'Épargne
+- Création d'objectifs avec montant cible et deadline
+- Suivi de progression avec barres de progression
+- Widget compact sur la page d'accueil
+- Alertes de délais imminents
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 💰 Gestion des Budgets
+- Budgets mensuels par catégorie
+- Alertes de dépassement en temps réel
+- Historique de consommation
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 🔄 Transactions Récurrentes
+- Détection automatique (mensuel, trimestriel, annuel)
+- Sparklines d'historique des montants
+- Activation/désactivation du suivi
+- Estimation des coûts fixes mensuels
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### 📱 PWA & Mode Hors-Ligne
+- Installation sur mobile et desktop
+- Fonctionnement complet hors-ligne
+- Service Worker avec cache network-first
+
+### 🔧 Fonctionnalités Avancées
+- **Undo/Redo** : Historique des modifications
+- **Raccourcis clavier** : Ctrl+N (nouveau), Ctrl+Z (annuler), etc.
+- **Backup/Restore** : Export/import JSON complet
+- **Thème clair/sombre** : Design Mercury Premium
+- **Bouton flottant** : Ajout rapide de transactions
+- **Indicateur hors-ligne** : Notification de connectivité
+
+## 🛠️ Stack Technique
+
+| Technologie | Usage |
+|-------------|-------|
+| **React 18** | Framework UI avec hooks |
+| **TypeScript** | Typage statique |
+| **Vite** | Build tool ultra-rapide |
+| **Tailwind CSS** | Styles utilitaires |
+| **shadcn/ui** | Composants UI accessibles |
+| **Recharts** | Graphiques interactifs |
+| **pdfjs-dist** | Parsing PDF local |
+| **Zod** | Validation de schémas |
+| **date-fns** | Manipulation de dates |
+| **localStorage** | Persistance des données |
+
+## 📁 Structure du Projet
+
+```
+src/
+├── components/          # Composants React réutilisables
+│   ├── ui/             # Composants shadcn/ui
+│   └── ...             # Composants métier
+├── hooks/              # Hooks personnalisés
+│   ├── useKeyboardShortcuts.ts
+│   ├── useUndoRedo.ts
+│   └── use-toast.ts
+├── pages/              # Pages de l'application
+│   ├── Index.tsx       # Page d'accueil
+│   ├── Dashboard.tsx   # Tableau de bord avancé
+│   ├── Accounts.tsx    # Gestion des comptes
+│   ├── History.tsx     # Archives et recherche
+│   ├── Categories.tsx  # Gestion des règles
+│   ├── Budgets.tsx     # Budgets mensuels
+│   ├── Goals.tsx       # Objectifs d'épargne
+│   ├── Projection.tsx  # Projections financières
+│   ├── Recurring.tsx   # Transactions récurrentes
+│   └── Settings.tsx    # Paramètres
+├── utils/              # Utilitaires et logique métier
+│   ├── parseCSV.ts     # Parser CSV multi-format
+│   ├── parsePDF.ts     # Parser PDF Caisse d'Épargne
+│   ├── categorize.ts   # Moteur de catégorisation
+│   ├── computeStats.ts # Calcul des statistiques
+│   ├── localStore.ts   # Abstraction localStorage
+│   ├── validation.ts   # Schémas Zod
+│   └── types.ts        # Types TypeScript
+└── index.css           # Design system Mercury
 ```
 
-**Edit a file directly in GitHub**
+## 🚀 Installation
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# Cloner le repository
+git clone <YOUR_GIT_URL>
 
-**Use GitHub Codespaces**
+# Installer les dépendances
+npm install
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Lancer en développement
+npm run dev
 
-## What technologies are used for this project?
+# Build production
+npm run build
+```
 
-This project is built with:
+## 📋 Formats CSV Supportés
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Format 3 colonnes (standard)
+```csv
+Date;Libellé;Montant
+15/01/2024;CARREFOUR MARKET;-45,30
+16/01/2024;VIREMENT SALAIRE;2500,00
+```
 
-## How can I deploy this project?
+### Format 4 colonnes (Débit/Crédit séparés)
+```csv
+Date;Libellé;Débit;Crédit
+15/01/2024;CARREFOUR MARKET;45,30;
+16/01/2024;VIREMENT SALAIRE;;2500,00
+```
 
-Simply open [Lovable](https://lovable.dev/projects/example-project) and click on Share -> Publish.
+### Formats de montants reconnus
+- Montants signés : `-45,30` ou `+2500,00`
+- Signe à droite : `45,30-`
+- Indicateurs DR/CR : `45,30 DR` ou `2500,00 CR`
+- Séparateurs : `,` ou `.` comme décimale
+- Symbole euro : `45,30 €`
 
-## Can I connect a custom domain to my Lovable project?
+## 🎨 Design System "Mercury Premium"
 
-Yes, you can!
+- **Police** : Inter avec letter-spacing serré
+- **Thème clair** : Fond beige/blanc minimal
+- **Thème sombre** : Fond navy/noir premium
+- **Accent** : Bleu électrique (#1e88ff)
+- **Effets** : Glassmorphism, micro-animations, glow
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🔒 Sécurité & Confidentialité
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- ✅ 100% local - aucune donnée transmise
+- ✅ Validation Zod sur tous les formulaires
+- ✅ Validation profonde des imports JSON
+- ✅ Confirmation avant suppressions
+- ✅ IDs déterministes anti-doublons
+- ✅ Prêt pour chiffrement PBKDF2 futur
+
+## 📱 Raccourcis Clavier
+
+| Raccourci | Action |
+|-----------|--------|
+| `Ctrl+N` | Nouvelle transaction |
+| `Ctrl+Shift+I` | Importer fichier |
+| `Ctrl+F` | Rechercher |
+| `Ctrl+Z` | Annuler |
+| `Ctrl+Shift+Z` | Rétablir |
+| `Shift+?` | Aide raccourcis |
+| `H` | Accueil |
+| `D` | Dashboard |
+
+## 📊 Catégories Disponibles
+
+### Charges Fixes (Incompressibles)
+- 🏠 Loyer
+- ⚡ Énergie (EDF, Engie, etc.)
+- 🛡️ Assurances
+- 🌐 Internet
+- 📱 Mobile
+- 🚇 Transport
+- 📈 Investissements
+
+### Dépenses Variables
+- 🛒 Courses
+- 🍽️ Restauration
+- 🛍️ Shopping
+- 🚬 Tabac
+- 🎬 Loisirs
+- 💊 Santé
+- 🔁 Virements internes
+- 📦 Divers
+
+## 🤝 Contribution
+
+Ce projet est développé avec [Lovable](https://lovable.dev). Les modifications peuvent être faites :
+- Directement dans l'éditeur Lovable
+- Via GitHub après connexion du repository
+- Localement puis push vers GitHub
+
+## 📄 Licence
+
+Projet personnel - Tous droits réservés.
+
+---
+
+*Développé avec ❤️ pour une gestion financière simple, locale et respectueuse de votre vie privée.*
