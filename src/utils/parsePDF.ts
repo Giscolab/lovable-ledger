@@ -1,12 +1,26 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Transaction } from './types';
 import { categorizeTransaction } from './categorize';
 import { localStore } from './localStore';
 import { computeTransactionId } from './transactionId';
 import { buildTransactionFingerprint, normalizeLabel, parseEuroToCents } from './normalization';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+// Configure PDF.js worker (bundled locally for offline use)
+let workerConfigured = false;
+const configureWorker = () => {
+  if (workerConfigured) return;
+  if (!pdfjsWorker) {
+    throw new Error('PDF worker asset missing');
+  }
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+    workerConfigured = true;
+  } catch (err) {
+    console.error('[PDF Parser] Failed to configure pdfjs worker', err);
+    throw new Error('PDF worker failed to load locally');
+  }
+};
 
 interface TextItem {
   str: string;
@@ -55,6 +69,7 @@ const detectDebitCreditColumns = (lines: ParsedLine[]): { debitMinX: number; deb
 };
 
 export const parsePDF = async (file: File): Promise<Transaction[]> => {
+  configureWorker();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   
