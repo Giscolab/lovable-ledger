@@ -15,5 +15,6 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  assetsInclude: ["**/*.mjs"],
+assetsInclude: ["**/pdf.worker*.mjs"],
+
 }));
