@@ -28,7 +28,6 @@ export type CategoryType =
   | 'taxes'
   | 'donations'
   | 'unexpected'
-  | 'internal_transfer' // 👈 AJOUT
   | 'other';
 
 export type TransactionSource = 'manual' | 'csv' | 'pdf';
