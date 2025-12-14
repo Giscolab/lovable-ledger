@@ -27,3 +27,6 @@ dist-ssr
 .env
 
 arborescence.txt
+
+.codex/
+
