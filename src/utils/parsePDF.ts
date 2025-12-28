@@ -1,21 +1,24 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { Transaction } from './types';
-import { categorizeTransaction } from './categorize';
-import { localStore } from './localStore';
-import { computeTransactionId } from './transactionId';
-import { buildTransactionFingerprint, normalizeLabel, parseEuroToCents } from './normalization';
 
-// Configure PDF.js worker (bundled locally for offline use)
+import { localStore } from './localStore';
+import { categorizeTransaction } from './categorize';
+import { computeTransactionId } from './transactionId';
+
+import {
+  buildTransactionFingerprint,
+  normalizeLabel,
+  parseEuroToCents
+} from './normalization';
+
+// Configure PDF.js worker (served from /public)
 let workerConfigured = false;
 const configureWorker = () => {
   if (workerConfigured) return;
-  if (!pdfjsWorker) {
-    throw new Error('PDF worker asset missing');
-  }
+
   try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
     workerConfigured = true;
+    console.log("workerSrc =", pdfjsLib.GlobalWorkerOptions.workerSrc);
   } catch (err) {
     console.error('[PDF Parser] Failed to configure pdfjs worker', err);
     throw new Error('PDF worker failed to load locally');
@@ -33,6 +36,7 @@ interface ParsedLine {
   y: number;
   items: { x: number; text: string }[];
 }
+
 
 /**
  * Detects if the PDF uses separate Debit/Credit columns based on X positions
