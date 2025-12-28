@@ -9,7 +9,7 @@ Application de gestion de finances personnelles 100% locale et respectueuse de l
 
 ## ℹ️ Infos projet
 
-- Espace Lovable : https://lovable.dev/projects/finance-pro (accès éditeur et prévisualisation)
+
 - Déploiement cible : application locale Vite/React (pas de backend distant)
 - Supabase (métadonnées et backups optionnels) : project_id `ipesvzdtofmplvrewbjt`
 
@@ -222,12 +222,6 @@ Date;Libellé;Débit;Crédit
 - 🔁 Virements internes
 - 📦 Divers
 
-## 🤝 Contribution
-
-Ce projet est développé avec [Lovable](https://lovable.dev). Les modifications peuvent être faites :
-- Directement dans l'éditeur Lovable
-- Via GitHub après connexion du repository
-- Localement puis push vers GitHub
 
 ## 📄 Licence
 
